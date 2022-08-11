@@ -1,3 +1,6 @@
+![GitHub Workflow Status](https://img.shields.io/github/workflow/status/michaelboyles/simple-di/Java%20CI%20with%20Maven)
+![License](https://img.shields.io/github/license/michaelboyles/simple-di)
+
 A simple dependency injection framework for Java, using code generation at compile-time.
 
 This project is designed to demonstrate how code generation techniques can be used to write frameworks
