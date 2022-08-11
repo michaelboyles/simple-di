@@ -12,6 +12,11 @@
         <module>plugin</module>
         <module>test</module>
     </modules>
+    <description>A simple dependency injection implementation using code generation</description>
+    <scm>
+        <connection>scm:git:git://github.com/michaelboyles/simple-di</connection>
+        <url>https://github.com/michaelboyles/simple-di</url>
+    </scm>
 
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
