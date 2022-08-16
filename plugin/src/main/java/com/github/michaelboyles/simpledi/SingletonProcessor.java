@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.github.michaelboyles.simpledi.Const.COLLECTION_TO_FACTORY_METHOD;
 import static com.github.michaelboyles.simpledi.Const.INJECTOR_CLASS_NAME;
 import static java.util.Collections.emptyList;
 
@@ -148,10 +149,12 @@ public class SingletonProcessor extends AbstractProcessor {
         String paramTypeFqn = parameter.asType().toString();
         List<SdiBean> candidates = new ArrayList<>(fqnToBeans.getOrDefault(paramTypeFqn, emptyList()));
         if (candidates.isEmpty()) {
-            if (paramTypeFqn.startsWith(List.class.getName())) {
-                DeclaredType contentsType = getCollectionContentsType(parameter);
-                List<SdiBean> contents = fqnToBeans.getOrDefault(contentsType.toString(), emptyList());
-                return new SdiCollectionDependency(List.class, contents);
+            for (Map.Entry<Class<?>, CollectionFactoryMethod> entry : COLLECTION_TO_FACTORY_METHOD.entrySet()) {
+                if (paramTypeFqn.startsWith(entry.getKey().getName())) {
+                    DeclaredType contentsType = getCollectionContentsType(parameter);
+                    List<SdiBean> contents = fqnToBeans.getOrDefault(contentsType.toString(), emptyList());
+                    return new SdiCollectionDependency(entry.getValue(), contents);
+                }
             }
             throw new RuntimeException(
                 "%s requires a bean of type %s which does not exist".formatted(bean.getFqn(), paramTypeFqn)
