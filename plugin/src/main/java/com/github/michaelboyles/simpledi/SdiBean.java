@@ -15,11 +15,11 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
- * A singleton that was found by annotation processing.
+ * A bean that was found by annotation processing.
  */
 @Data
 @Accessors(fluent = true)
-public class SdiSingleton {
+public class SdiBean {
     private final List<SdiDependency> dependencies = new ArrayList<>();
     private final String name;
     private final TypeElement typeElement;

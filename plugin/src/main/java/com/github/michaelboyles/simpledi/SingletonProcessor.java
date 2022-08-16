@@ -45,14 +45,12 @@ public class SingletonProcessor extends AbstractProcessor {
     @SneakyThrows
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        List<SdiSingleton> sortedSingletons = sortSingletonsByNumDependencies(
-            getSingletons(roundEnv)
-        );
+        List<SdiBean> sortedBeans = sortBeansByNumDependencies(getBeans(roundEnv));
 
-        if (!sortedSingletons.isEmpty()) {
+        if (!sortedBeans.isEmpty()) {
             JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(INJECTOR_CLASS_NAME);
             try (PrintWriter out = new PrintWriter(builderFile.openWriter())) {
-                InjectorClassGenerator generator = new InjectorClassGenerator(INJECTOR_CLASS_NAME, sortedSingletons);
+                InjectorClassGenerator generator = new InjectorClassGenerator(INJECTOR_CLASS_NAME, sortedBeans);
                 generator.generateClass().writeTo(out);
             }
             return true;
@@ -60,10 +58,10 @@ public class SingletonProcessor extends AbstractProcessor {
         return false;
     }
 
-    private List<SdiSingleton> getSingletons(RoundEnvironment roundEnv) {
+    private List<SdiBean> getBeans(RoundEnvironment roundEnv) {
         return roundEnv.getElementsAnnotatedWith(Singleton.class).stream()
             .filter(singleton -> singleton.asType().getKind() == TypeKind.DECLARED)
-            .map(singleton -> new SdiSingleton(getName(singleton), (TypeElement) singleton, getConstructor(singleton)))
+            .map(singleton -> new SdiBean(getName(singleton), (TypeElement) singleton, getConstructor(singleton)))
             .collect(Collectors.toList());
     }
 
@@ -104,60 +102,60 @@ public class SingletonProcessor extends AbstractProcessor {
         );
     }
 
-    private List<SdiSingleton> sortSingletonsByNumDependencies(List<SdiSingleton> singletons) {
+    private List<SdiBean> sortBeansByNumDependencies(List<SdiBean> beans) {
         Map<String, Long> fqnToNumDependents = new HashMap<>();
-        Map<String, List<SdiSingleton>> fqnToSingletons = new HashMap<>();
-        for (SdiSingleton singleton : singletons) {
-            for (String fqn : singleton.getAllFqns()) {
-                fqnToSingletons.computeIfAbsent(fqn, k -> new ArrayList<>()).add(singleton);
+        Map<String, List<SdiBean>> fqnToBeans = new HashMap<>();
+        for (SdiBean bean : beans) {
+            for (String fqn : bean.getAllFqns()) {
+                fqnToBeans.computeIfAbsent(fqn, k -> new ArrayList<>()).add(bean);
             }
         }
-        for (SdiSingleton singleton : singletons) {
-            getNumDependencies(fqnToNumDependents, fqnToSingletons, singleton);
+        for (SdiBean bean : beans) {
+            getNumDependencies(fqnToNumDependents, fqnToBeans, bean);
         }
-        return singletons.stream()
-            .sorted(Comparator.comparing(singleton -> fqnToNumDependents.get(singleton.getFqn())))
+        return beans.stream()
+            .sorted(Comparator.comparing(bean -> fqnToNumDependents.get(bean.getFqn())))
             .collect(Collectors.toList());
     }
 
     private long getNumDependencies(Map<String, Long> fqnToNumDependents,
-                                    Map<String, List<SdiSingleton>> fqnToSingletons,
-                                    SdiSingleton singleton) {
+                                    Map<String, List<SdiBean>> fqnToBeans,
+                                    SdiBean bean) {
         final Long SENTINEL = -123L;
 
-        Long prevNumDeps = fqnToNumDependents.get(singleton.getFqn());
+        Long prevNumDeps = fqnToNumDependents.get(bean.getFqn());
         if (SENTINEL.equals(prevNumDeps)) throw new RuntimeException("Circular dependency!");
         if (prevNumDeps != null) return prevNumDeps;
 
-        fqnToNumDependents.put(singleton.getFqn(), SENTINEL);
+        fqnToNumDependents.put(bean.getFqn(), SENTINEL);
         long numDependencies = 0;
-        for (VariableElement parameter : singleton.constructor().getParameters()) {
+        for (VariableElement parameter : bean.constructor().getParameters()) {
             TypeMirror paramType = parameter.asType();
             if (paramType.getKind() != TypeKind.DECLARED) {
                 throw new RuntimeException("Unsupported type in constructor: " + paramType);
             }
-            SdiDependency dependency = findDependenciesForParam(fqnToSingletons, singleton, parameter);
-            singleton.addDependency(dependency);
-            for (SdiSingleton dependentSingleton : dependency.getSingletons()) {
-                numDependencies += (1 + getNumDependencies(fqnToNumDependents, fqnToSingletons, dependentSingleton));
+            SdiDependency dependency = findDependenciesForParam(fqnToBeans, bean, parameter);
+            bean.addDependency(dependency);
+            for (SdiBean dependentBean : dependency.getBeans()) {
+                numDependencies += (1 + getNumDependencies(fqnToNumDependents, fqnToBeans, dependentBean));
             }
         }
-        fqnToNumDependents.put(singleton.getFqn(), numDependencies);
+        fqnToNumDependents.put(bean.getFqn(), numDependencies);
         return numDependencies;
     }
 
-    private SdiDependency findDependenciesForParam(Map<String, List<SdiSingleton>> fqnToSingletons,
-                                                   SdiSingleton singleton, VariableElement parameter) {
+    private SdiDependency findDependenciesForParam(Map<String, List<SdiBean>> fqnToBeans, SdiBean bean,
+                                                   VariableElement parameter) {
         String paramTypeFqn = parameter.asType().toString();
-        List<SdiSingleton> candidates = new ArrayList<>(fqnToSingletons.getOrDefault(paramTypeFqn, emptyList()));
+        List<SdiBean> candidates = new ArrayList<>(fqnToBeans.getOrDefault(paramTypeFqn, emptyList()));
         if (candidates.isEmpty()) {
             if (paramTypeFqn.startsWith(List.class.getName())) {
                 DeclaredType contentsType = getCollectionContentsType(parameter);
-                List<SdiSingleton> contents = fqnToSingletons.getOrDefault(contentsType.toString(), emptyList());
+                List<SdiBean> contents = fqnToBeans.getOrDefault(contentsType.toString(), emptyList());
                 return new SdiCollectionDependency(List.class, contents);
             }
             throw new RuntimeException(
-                "%s requires a bean of type %s which does not exist".formatted(singleton.getFqn(), paramTypeFqn)
+                "%s requires a bean of type %s which does not exist".formatted(bean.getFqn(), paramTypeFqn)
             );
         }
         Named named = parameter.getAnnotation(Named.class);
@@ -167,8 +165,8 @@ public class SingletonProcessor extends AbstractProcessor {
         if (candidates.size() > 1) {
             throw new RuntimeException(
                 "Ambiguous dependency. %s requires a bean of type %s and there are %d candidates: %s".formatted(
-                    singleton.getFqn(), paramTypeFqn, candidates.size(),
-                    candidates.stream().map(SdiSingleton::getFqn).collect(Collectors.joining(", "))
+                    bean.getFqn(), paramTypeFqn, candidates.size(),
+                    candidates.stream().map(SdiBean::getFqn).collect(Collectors.joining(", "))
                 )
             );
         }

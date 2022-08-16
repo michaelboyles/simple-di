@@ -15,19 +15,19 @@ import java.util.Map;
 /**
  * Generates a class which performs dependency injection.
  */
-public record InjectorClassGenerator(String className, List<SdiSingleton> sortedSingletons) {
+public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans) {
     public JavaFile generateClass() {
         TypeSpec helloWorld = TypeSpec.classBuilder(className)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
-            .addField(getNameToSingletonMapField())
+            .addField(getNameToBeanMapField())
             .addMethod(getMainMethod())
-            .addMethod(getSingletonByNameMethod())
+            .addMethod(getBeanByNameMethod())
             .build();
         return JavaFile.builder("com.example", helloWorld).build();
     }
 
-    private FieldSpec getNameToSingletonMapField() {
-        return FieldSpec.builder(ParameterizedTypeName.get(Map.class, String.class, Object.class), "nameToSingleton")
+    private FieldSpec getNameToBeanMapField() {
+        return FieldSpec.builder(ParameterizedTypeName.get(Map.class, String.class, Object.class), "nameToBean")
             .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
             .initializer("new $T<>()", HashMap.class)
             .build();
@@ -37,38 +37,38 @@ public record InjectorClassGenerator(String className, List<SdiSingleton> sorted
         MethodSpec.Builder builder = MethodSpec.methodBuilder("start")
             .addModifiers(Modifier.PUBLIC)
             .returns(void.class);
-        for (SdiSingleton singleton : sortedSingletons) {
-            addSingletonInstantiation(builder, singleton);
+        for (SdiBean bean : sortedBeans) {
+            addBeanInstantiation(builder, bean);
         }
-        for (SdiSingleton singleton : sortedSingletons) {
-            addSingletonRegistration(builder, singleton);
+        for (SdiBean bean : sortedBeans) {
+            addBeanRegistration(builder, bean);
         }
         return builder.build();
     }
 
-    private void addSingletonInstantiation(MethodSpec.Builder methodBuilder, SdiSingleton singleton) {
+    private void addBeanInstantiation(MethodSpec.Builder methodBuilder, SdiBean bean) {
         CodeBlock.Builder builder = CodeBlock.builder()
-            .add("$T $L = new $T(", singleton.typeElement(), singleton.getIdentifier(), singleton.typeElement());
-        for (int i = 0; i < singleton.dependencies().size(); ++i) {
-            builder.add(singleton.dependencies().get(i).getArgumentExpression());
-            if (i < (singleton.dependencies().size() - 1)) {
+            .add("$T $L = new $T(", bean.typeElement(), bean.getIdentifier(), bean.typeElement());
+        for (int i = 0; i < bean.dependencies().size(); ++i) {
+            builder.add(bean.dependencies().get(i).getArgumentExpression());
+            if (i < (bean.dependencies().size() - 1)) {
                 builder.add(", ");
             }
         }
         methodBuilder.addStatement(builder.add(")").build());
     }
 
-    private void addSingletonRegistration(MethodSpec.Builder methodBuilder, SdiSingleton singleton) {
-        String id = singleton.getIdentifier();
-        methodBuilder.addStatement("nameToSingleton.put($S, $L)", id, id);
+    private void addBeanRegistration(MethodSpec.Builder methodBuilder, SdiBean bean) {
+        String id = bean.getIdentifier();
+        methodBuilder.addStatement("nameToBean.put($S, $L)", id, id);
     }
 
-    private MethodSpec getSingletonByNameMethod() {
-        return MethodSpec.methodBuilder("getSingletonByName")
+    private MethodSpec getBeanByNameMethod() {
+        return MethodSpec.methodBuilder("getBeanByName")
             .addModifiers(Modifier.PUBLIC)
             .returns(Object.class)
             .addParameter(String.class, "name")
-            .addStatement("return $L.get($L)", "nameToSingleton", "name")
+            .addStatement("return $L.get($L)", "nameToBean", "name")
             .build();
     }
 }

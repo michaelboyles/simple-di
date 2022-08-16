@@ -13,7 +13,7 @@ annotations, though doesn't conform completely to that spec.
 
 ```java
 public final class SimpleDIContext {
-    private final Map<String, Object> nameToSingleton = new HashMap<>();
+    private final Map<String, Object> nameToBean = new HashMap<>();
 
     public void start() {
         PassengerSeat passengerSeat = new PassengerSeat();
@@ -21,15 +21,15 @@ public final class SimpleDIContext {
         Turbocharger turbocharger = new Turbocharger();
         Engine engine = new Engine(turbocharger);
         Car car = new Car(engine, driversSeat, List.of(passengerSeat, driversSeat));
-        nameToSingleton.put("passengerSeat", passengerSeat);
-        nameToSingleton.put("driversSeat", driversSeat);
-        nameToSingleton.put("turbocharger", turbocharger);
-        nameToSingleton.put("engine", engine);
-        nameToSingleton.put("car", car);
+        nameToBean.put("passengerSeat", passengerSeat);
+        nameToBean.put("driversSeat", driversSeat);
+        nameToBean.put("turbocharger", turbocharger);
+        nameToBean.put("engine", engine);
+        nameToBean.put("car", car);
     }
 
-    public Object getSingletonByName(String name) {
-        return nameToSingleton.get(name);
+    public Object getBeanByName(String name) {
+        return nameToBean.get(name);
     }
 }
 ```

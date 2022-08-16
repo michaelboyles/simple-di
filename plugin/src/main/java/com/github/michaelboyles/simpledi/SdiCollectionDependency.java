@@ -10,16 +10,16 @@ import java.util.List;
  */
 public class SdiCollectionDependency implements SdiDependency {
     private final Class<? extends Collection<?>> concreteCollectionType;
-    private final List<SdiSingleton> contents;
+    private final List<SdiBean> contents;
 
     public <T extends Collection<?>, U extends T> SdiCollectionDependency(Class<U> concreteCollectionType,
-                                                                          List<SdiSingleton> contents) {
+                                                                          List<SdiBean> contents) {
         this.concreteCollectionType = concreteCollectionType;
         this.contents = contents;
     }
 
     @Override
-    public List<SdiSingleton> getSingletons() {
+    public List<SdiBean> getBeans() {
         return contents;
     }
 
