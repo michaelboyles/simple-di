@@ -9,7 +9,7 @@ which are often implemented at runtime using reflection (e.g. Spring). It is not
 It is built around the [`javax.inject`](https://docs.oracle.com/javaee/6/api/javax/inject/package-summary.html)
 annotations, though doesn't conform completely to that spec.
 
-## Sample output
+### Sample output
 
 ```java
 public final class SimpleDIContext {
@@ -34,10 +34,29 @@ public final class SimpleDIContext {
 }
 ```
 
-## How to run
+### How to run
 
 Run `mvn verify` and `test/target/generated-sources/annotations` will then contain the generated context
 class.
 
 Make changes to the `test` module, e.g. to add or remove components, then re-run `mvn verify` and the class will be
 updated.
+
+### Implemented
+
+- Provide beans by annotating classes with `@Singleton`
+- Constructor injection
+- Disambiguate constructors with `@Inject`
+- Disambiguate beans with `@Named`
+- Autowire collections (List, Set, etc.)
+
+### Might be implemented
+
+ - Method injection
+ - Circular dependency resolution
+
+### Won't be implemented
+
+ - Field injection. [It's error-prone](https://stackoverflow.com/questions/19896870/why-is-my-spring-autowired-field-null)
+   (check the view count), and private fields would need to be set via reflection, which is against the philosophy of
+   this example.
