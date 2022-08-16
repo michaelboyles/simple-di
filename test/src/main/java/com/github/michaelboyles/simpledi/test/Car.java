@@ -9,7 +9,7 @@ public class Car {
     private final Seat seat;
 
     @Inject
-    public Car(Engine engine, DriversSeat seat) {
+    public Car(Engine engine, Seat seat) {
         this.engine = engine;
         this.seat = seat;
     }

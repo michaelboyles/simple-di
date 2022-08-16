@@ -5,7 +5,6 @@ import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeSpec;
-import lombok.AllArgsConstructor;
 
 import javax.lang.model.element.Modifier;
 import java.util.HashMap;
@@ -48,8 +47,8 @@ public record InjectorClassGenerator(String className, List<SdiSingleton> sorted
     }
 
     private void addSingletonInstantiation(MethodSpec.Builder methodBuilder, SdiSingleton singleton) {
-        String args = singleton.constructor().getParameters().stream()
-            .map(param -> getIdentifier(param.asType().toString()))
+        String args = singleton.dependencies().stream()
+            .map(this::getIdentifier)
             .collect(Collectors.joining(", "));
         methodBuilder.addStatement(
             "$T $L = new $T($L)", singleton.typeElement(), getIdentifier(singleton),

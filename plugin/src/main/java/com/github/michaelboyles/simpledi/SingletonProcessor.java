@@ -96,10 +96,14 @@ public class SingletonProcessor extends AbstractProcessor {
 
     private List<SdiSingleton> sortSingletonsByNumDependencies(List<SdiSingleton> singletons) {
         Map<String, Long> fqnToNumDependents = new HashMap<>();
-        Map<String, SdiSingleton> fqnToSingleton = singletons.stream()
-            .collect(Collectors.toMap(SdiSingleton::getFqn, s -> s));
+        Map<String, List<SdiSingleton>> fqnToSingletons = new HashMap<>();
         for (SdiSingleton singleton : singletons) {
-            getNumDependencies(fqnToNumDependents, fqnToSingleton, singleton);
+            for (String fqn : singleton.getAllFqns()) {
+                fqnToSingletons.computeIfAbsent(fqn, k -> new ArrayList<>()).add(singleton);
+            }
+        }
+        for (SdiSingleton singleton : singletons) {
+            getNumDependencies(fqnToNumDependents, fqnToSingletons, singleton);
         }
         return singletons.stream()
             .sorted(Comparator.comparing(singleton -> fqnToNumDependents.get(singleton.getFqn())))
@@ -107,7 +111,7 @@ public class SingletonProcessor extends AbstractProcessor {
     }
 
     private long getNumDependencies(Map<String, Long> fqnToNumDependents,
-                                    Map<String, SdiSingleton> fqnToSingleton,
+                                    Map<String, List<SdiSingleton>> fqnToSingletons,
                                     SdiSingleton singleton) {
         final Long SENTINEL = -123L;
 
@@ -122,14 +126,30 @@ public class SingletonProcessor extends AbstractProcessor {
             if (paramType.getKind() != TypeKind.DECLARED) {
                 throw new RuntimeException("Unsupported type in constructor: " + paramType);
             }
-            SdiSingleton dependency = fqnToSingleton.get(paramType.toString());
-            if (dependency == null) {
-                throw new RuntimeException(singleton.getFqn() + " requires a bean of type " + paramType
-                    + " which does not exist");
-            }
-            numDependencies += (1 + getNumDependencies(fqnToNumDependents, fqnToSingleton, dependency));
+            SdiSingleton dependency = findDependency(fqnToSingletons, singleton, paramType);
+            singleton.addDependency(dependency);
+            numDependencies += (1 + getNumDependencies(fqnToNumDependents, fqnToSingletons, dependency));
         }
         fqnToNumDependents.put(singleton.getFqn(), numDependencies);
         return numDependencies;
+    }
+
+    private SdiSingleton findDependency(Map<String, List<SdiSingleton>> fqnToSingletons, SdiSingleton singleton,
+                                        TypeMirror paramType) {
+        List<SdiSingleton> candidates = fqnToSingletons.get(paramType.toString());
+        if (candidates == null || candidates.isEmpty()) {
+            throw new RuntimeException(
+                "%s requires a bean of type %s which does not exist".formatted(singleton.getFqn(), paramType)
+            );
+        }
+        else if (candidates.size() > 1) {
+            throw new RuntimeException(
+                "Ambiguous dependency. %s requires a bean of type %s and there are %d candidates: %s".formatted(
+                    singleton.getFqn(), paramType, candidates.size(),
+                    candidates.stream().map(SdiSingleton::getFqn).collect(Collectors.joining(", "))
+                )
+            );
+        }
+        return candidates.get(0);
     }
 }
