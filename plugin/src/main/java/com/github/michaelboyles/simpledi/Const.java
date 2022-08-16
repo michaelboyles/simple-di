@@ -3,8 +3,11 @@ package com.github.michaelboyles.simpledi;
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -27,8 +30,11 @@ class Const {
 
     static {
         COLLECTION_TO_FACTORY_METHOD = new LinkedHashMap<>();
-        COLLECTION_TO_FACTORY_METHOD.put(List.class, new CollectionFactoryMethod(List.class, "of"));
-        COLLECTION_TO_FACTORY_METHOD.put(Set.class, new CollectionFactoryMethod(Set.class, "of"));
-        COLLECTION_TO_FACTORY_METHOD.put(Collection.class, new CollectionFactoryMethod(List.class, "of"));
+        COLLECTION_TO_FACTORY_METHOD.put(ArrayList.class, new CollectionConstructorFactoryMethod(ArrayList.class));
+        COLLECTION_TO_FACTORY_METHOD.put(LinkedList.class, new CollectionConstructorFactoryMethod(LinkedList.class));
+        COLLECTION_TO_FACTORY_METHOD.put(List.class, new CollectionOfFactoryMethod(List.class));
+        COLLECTION_TO_FACTORY_METHOD.put(HashSet.class, new CollectionConstructorFactoryMethod(HashSet.class));
+        COLLECTION_TO_FACTORY_METHOD.put(Set.class, new CollectionOfFactoryMethod(Set.class));
+        COLLECTION_TO_FACTORY_METHOD.put(Collection.class, new CollectionOfFactoryMethod(List.class));
     }
 }
