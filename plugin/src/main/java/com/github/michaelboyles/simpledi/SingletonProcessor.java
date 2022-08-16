@@ -9,6 +9,7 @@ import javax.annotation.processing.RoundEnvironment;
 import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
@@ -59,8 +60,14 @@ public class SingletonProcessor extends AbstractProcessor {
     private List<SdiSingleton> getSingletons(RoundEnvironment roundEnv) {
         return roundEnv.getElementsAnnotatedWith(Singleton.class).stream()
             .filter(singleton -> singleton.asType().getKind() == TypeKind.DECLARED)
-            .map(singleton -> new SdiSingleton((TypeElement) singleton, getConstructor(singleton)))
+            .map(singleton -> new SdiSingleton(getName(singleton), (TypeElement) singleton, getConstructor(singleton)))
             .collect(Collectors.toList());
+    }
+
+    private String getName(Element singleton) {
+        Named named = singleton.getAnnotation(Named.class);
+        if (named == null) return singleton.getSimpleName().toString();
+        return named.value();
     }
 
     private ExecutableElement getConstructor(Element singleton) {
@@ -126,7 +133,7 @@ public class SingletonProcessor extends AbstractProcessor {
             if (paramType.getKind() != TypeKind.DECLARED) {
                 throw new RuntimeException("Unsupported type in constructor: " + paramType);
             }
-            SdiSingleton dependency = findDependency(fqnToSingletons, singleton, paramType);
+            SdiSingleton dependency = findDependency(fqnToSingletons, singleton, parameter);
             singleton.addDependency(dependency);
             numDependencies += (1 + getNumDependencies(fqnToNumDependents, fqnToSingletons, dependency));
         }
@@ -135,17 +142,22 @@ public class SingletonProcessor extends AbstractProcessor {
     }
 
     private SdiSingleton findDependency(Map<String, List<SdiSingleton>> fqnToSingletons, SdiSingleton singleton,
-                                        TypeMirror paramType) {
-        List<SdiSingleton> candidates = fqnToSingletons.get(paramType.toString());
+                                        VariableElement parameter) {
+        String paramTypeFqn = parameter.asType().toString();
+        List<SdiSingleton> candidates = fqnToSingletons.get(paramTypeFqn);
         if (candidates == null || candidates.isEmpty()) {
             throw new RuntimeException(
-                "%s requires a bean of type %s which does not exist".formatted(singleton.getFqn(), paramType)
+                "%s requires a bean of type %s which does not exist".formatted(singleton.getFqn(), paramTypeFqn)
             );
         }
-        else if (candidates.size() > 1) {
+        Named named = parameter.getAnnotation(Named.class);
+        if (named != null) {
+            candidates.removeIf(candidate -> !candidate.name().equals(named.value()));
+        }
+        if (candidates.size() > 1) {
             throw new RuntimeException(
                 "Ambiguous dependency. %s requires a bean of type %s and there are %d candidates: %s".formatted(
-                    singleton.getFqn(), paramType, candidates.size(),
+                    singleton.getFqn(), paramTypeFqn, candidates.size(),
                     candidates.stream().map(SdiSingleton::getFqn).collect(Collectors.joining(", "))
                 )
             );

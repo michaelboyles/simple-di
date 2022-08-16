@@ -21,6 +21,7 @@ import java.util.stream.Stream;
 @Accessors(fluent = true)
 public class SdiSingleton {
     private final List<SdiSingleton> dependencies = new ArrayList<>();
+    private final String name;
     private final TypeElement typeElement;
     private final ExecutableElement constructor;
 
