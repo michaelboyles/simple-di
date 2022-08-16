@@ -17,6 +17,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 import javax.tools.JavaFileObject;
@@ -28,6 +29,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
+
+import static java.util.Collections.emptyList;
 
 /**
  * An annotation processor which scans for classes annotated with {@link javax.inject.Singleton} and creates a
@@ -133,19 +136,26 @@ public class SingletonProcessor extends AbstractProcessor {
             if (paramType.getKind() != TypeKind.DECLARED) {
                 throw new RuntimeException("Unsupported type in constructor: " + paramType);
             }
-            SdiSingleton dependency = findDependency(fqnToSingletons, singleton, parameter);
+            SdiDependency dependency = findDependenciesForParam(fqnToSingletons, singleton, parameter);
             singleton.addDependency(dependency);
-            numDependencies += (1 + getNumDependencies(fqnToNumDependents, fqnToSingletons, dependency));
+            for (SdiSingleton dependentSingleton : dependency.getSingletons()) {
+                numDependencies += (1 + getNumDependencies(fqnToNumDependents, fqnToSingletons, dependentSingleton));
+            }
         }
         fqnToNumDependents.put(singleton.getFqn(), numDependencies);
         return numDependencies;
     }
 
-    private SdiSingleton findDependency(Map<String, List<SdiSingleton>> fqnToSingletons, SdiSingleton singleton,
-                                        VariableElement parameter) {
+    private SdiDependency findDependenciesForParam(Map<String, List<SdiSingleton>> fqnToSingletons,
+                                                   SdiSingleton singleton, VariableElement parameter) {
         String paramTypeFqn = parameter.asType().toString();
-        List<SdiSingleton> candidates = fqnToSingletons.get(paramTypeFqn);
-        if (candidates == null || candidates.isEmpty()) {
+        List<SdiSingleton> candidates = new ArrayList<>(fqnToSingletons.getOrDefault(paramTypeFqn, emptyList()));
+        if (candidates.isEmpty()) {
+            if (paramTypeFqn.startsWith(List.class.getName())) {
+                DeclaredType contentsType = getCollectionContentsType(parameter);
+                List<SdiSingleton> contents = fqnToSingletons.getOrDefault(contentsType.toString(), emptyList());
+                return new SdiCollectionDependency(List.class, contents);
+            }
             throw new RuntimeException(
                 "%s requires a bean of type %s which does not exist".formatted(singleton.getFqn(), paramTypeFqn)
             );
@@ -162,6 +172,14 @@ public class SingletonProcessor extends AbstractProcessor {
                 )
             );
         }
-        return candidates.get(0);
+        return new SdiBasicDependency(candidates.get(0));
+    }
+
+    private DeclaredType getCollectionContentsType(VariableElement collectionParameter) {
+        List<? extends TypeMirror> typeArguments = ((DeclaredType) collectionParameter.asType()).getTypeArguments();
+        if (typeArguments.size() != 1) {
+            throw new RuntimeException("Collection has wrong number of type params: " + typeArguments.size());
+        }
+        return (DeclaredType) typeArguments.get(0);
     }
 }

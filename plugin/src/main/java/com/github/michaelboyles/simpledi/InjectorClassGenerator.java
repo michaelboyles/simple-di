@@ -1,5 +1,6 @@
 package com.github.michaelboyles.simpledi;
 
+import com.squareup.javapoet.CodeBlock;
 import com.squareup.javapoet.FieldSpec;
 import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
@@ -10,7 +11,6 @@ import javax.lang.model.element.Modifier;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Generates a class which performs dependency injection.
@@ -47,17 +47,19 @@ public record InjectorClassGenerator(String className, List<SdiSingleton> sorted
     }
 
     private void addSingletonInstantiation(MethodSpec.Builder methodBuilder, SdiSingleton singleton) {
-        String args = singleton.dependencies().stream()
-            .map(this::getIdentifier)
-            .collect(Collectors.joining(", "));
-        methodBuilder.addStatement(
-            "$T $L = new $T($L)", singleton.typeElement(), getIdentifier(singleton),
-            singleton.typeElement(), args
-        );
+        CodeBlock.Builder builder = CodeBlock.builder()
+            .add("$T $L = new $T(", singleton.typeElement(), singleton.getIdentifier(), singleton.typeElement());
+        for (int i = 0; i < singleton.dependencies().size(); ++i) {
+            builder.add(singleton.dependencies().get(i).getArgumentExpression());
+            if (i < (singleton.dependencies().size() - 1)) {
+                builder.add(", ");
+            }
+        }
+        methodBuilder.addStatement(builder.add(")").build());
     }
 
     private void addSingletonRegistration(MethodSpec.Builder methodBuilder, SdiSingleton singleton) {
-        String id = getIdentifier(singleton);
+        String id = singleton.getIdentifier();
         methodBuilder.addStatement("nameToSingleton.put($S, $L)", id, id);
     }
 
@@ -68,14 +70,5 @@ public record InjectorClassGenerator(String className, List<SdiSingleton> sorted
             .addParameter(String.class, "name")
             .addStatement("return $L.get($L)", "nameToSingleton", "name")
             .build();
-    }
-
-    private String getIdentifier(SdiSingleton singleton) {
-        return getIdentifier(singleton.getFqn());
-    }
-
-    private String getIdentifier(String fqn) {
-        String shortName = fqn.substring(fqn.lastIndexOf('.') + 1);
-        return shortName.substring(0, 1).toLowerCase() + shortName.substring(1);
     }
 }

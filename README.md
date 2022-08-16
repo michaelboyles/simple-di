@@ -16,10 +16,12 @@ public final class SimpleDIContext {
     private final Map<String, Object> nameToSingleton = new HashMap<>();
 
     public void start() {
+        PassengerSeat passengerSeat = new PassengerSeat();
         DriversSeat driversSeat = new DriversSeat();
         Turbocharger turbocharger = new Turbocharger();
         Engine engine = new Engine(turbocharger);
-        Car car = new Car(engine, driversSeat);
+        Car car = new Car(engine, driversSeat, List.of(passengerSeat, driversSeat));
+        nameToSingleton.put("passengerSeat", passengerSeat);
         nameToSingleton.put("driversSeat", driversSeat);
         nameToSingleton.put("turbocharger", turbocharger);
         nameToSingleton.put("engine", engine);

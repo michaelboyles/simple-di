@@ -20,12 +20,12 @@ import java.util.stream.Stream;
 @Data
 @Accessors(fluent = true)
 public class SdiSingleton {
-    private final List<SdiSingleton> dependencies = new ArrayList<>();
+    private final List<SdiDependency> dependencies = new ArrayList<>();
     private final String name;
     private final TypeElement typeElement;
     private final ExecutableElement constructor;
 
-    public void addDependency(SdiSingleton dependency) {
+    public void addDependency(SdiDependency dependency) {
         dependencies.add(dependency);
     }
 
@@ -61,5 +61,11 @@ public class SdiSingleton {
 
     private TypeElement getElement(TypeMirror mirror) {
         return (TypeElement) ((DeclaredType) mirror).asElement();
+    }
+
+    public String getIdentifier() {
+        String fqn = getFqn();
+        String shortName = fqn.substring(fqn.lastIndexOf('.') + 1);
+        return shortName.substring(0, 1).toLowerCase() + shortName.substring(1);
     }
 }
