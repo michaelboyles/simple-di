@@ -44,10 +44,10 @@ updated.
 
 ### Implemented
 
-- Provide beans by annotating classes with `@Singleton`
+- Provide beans by annotating classes with [`@Singleton`](https://docs.oracle.com/javaee/6/api/javax/inject/Singleton.html)
 - Constructor injection
-- Disambiguate constructors with `@Inject`
-- Disambiguate beans with `@Named`
+- Disambiguate constructors with [`@Inject`](https://docs.oracle.com/javaee/6/api/javax/inject/Inject.html)
+- Disambiguate beans with [`@Named`](https://docs.oracle.com/javaee/6/api/javax/inject/Named.html)
 - Autowire collections (List, Set, etc.)
 
 ### Might be implemented
