@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import static com.github.michaelboyles.simpledi.Const.INJECTOR_CLASS_NAME;
 import static java.util.Collections.emptyList;
 
 /**
@@ -40,8 +41,6 @@ import static java.util.Collections.emptyList;
 @SupportedSourceVersion(SourceVersion.RELEASE_8)
 @AutoService(Processor.class)
 public class SingletonProcessor extends AbstractProcessor {
-    private static final String INJECTOR_CLASS_NAME = "SimpleDIContext";
-
     @SneakyThrows
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {

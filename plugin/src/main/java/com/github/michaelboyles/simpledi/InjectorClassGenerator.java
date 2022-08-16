@@ -12,10 +12,14 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static com.github.michaelboyles.simpledi.Const.INJECTOR_PACKAGE_NAME;
+
 /**
  * Generates a class which performs dependency injection.
  */
 public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans) {
+    private static final String MAP_FIELD_NAME = "nameToBean";
+
     public JavaFile generateClass() {
         TypeSpec helloWorld = TypeSpec.classBuilder(className)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
@@ -23,11 +27,11 @@ public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans
             .addMethod(getMainMethod())
             .addMethod(getBeanByNameMethod())
             .build();
-        return JavaFile.builder("com.example", helloWorld).build();
+        return JavaFile.builder(INJECTOR_PACKAGE_NAME, helloWorld).build();
     }
 
     private FieldSpec getNameToBeanMapField() {
-        return FieldSpec.builder(ParameterizedTypeName.get(Map.class, String.class, Object.class), "nameToBean")
+        return FieldSpec.builder(ParameterizedTypeName.get(Map.class, String.class, Object.class), MAP_FIELD_NAME)
             .addModifiers(Modifier.PRIVATE, Modifier.FINAL)
             .initializer("new $T<>()", HashMap.class)
             .build();
@@ -60,7 +64,7 @@ public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans
 
     private void addBeanRegistration(MethodSpec.Builder methodBuilder, SdiBean bean) {
         String id = bean.getIdentifier();
-        methodBuilder.addStatement("nameToBean.put($S, $L)", id, id);
+        methodBuilder.addStatement("$L.put($S, $L)", MAP_FIELD_NAME, id, id);
     }
 
     private MethodSpec getBeanByNameMethod() {
@@ -68,7 +72,7 @@ public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans
             .addModifiers(Modifier.PUBLIC)
             .returns(Object.class)
             .addParameter(String.class, "name")
-            .addStatement("return $L.get($L)", "nameToBean", "name")
+            .addStatement("return $L.get($L)", MAP_FIELD_NAME, "name")
             .build();
     }
 }
