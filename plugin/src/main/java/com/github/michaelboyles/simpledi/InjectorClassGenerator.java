@@ -24,7 +24,7 @@ public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans
         TypeSpec helloWorld = TypeSpec.classBuilder(className)
             .addModifiers(Modifier.PUBLIC, Modifier.FINAL)
             .addField(getNameToBeanMapField())
-            .addMethod(getMainMethod())
+            .addMethod(getConstructor())
             .addMethod(getBeanByNameMethod())
             .build();
         return JavaFile.builder(INJECTOR_PACKAGE_NAME, helloWorld).build();
@@ -37,10 +37,9 @@ public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans
             .build();
     }
 
-    private MethodSpec getMainMethod() {
-        MethodSpec.Builder builder = MethodSpec.methodBuilder("start")
-            .addModifiers(Modifier.PUBLIC)
-            .returns(void.class);
+    private MethodSpec getConstructor() {
+        MethodSpec.Builder builder = MethodSpec.constructorBuilder()
+            .addModifiers(Modifier.PUBLIC);
         for (SdiBean bean : sortedBeans) {
             addBeanInstantiation(builder, bean);
         }

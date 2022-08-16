@@ -15,7 +15,7 @@ annotations, though doesn't conform completely to that spec.
 public final class SimpleDIContext {
     private final Map<String, Object> nameToBean = new HashMap<>();
 
-    public void start() {
+    public SimpleDIContext() {
         PassengerSeat passengerSeat = new PassengerSeat();
         DriversSeat driversSeat = new DriversSeat();
         Turbocharger turbocharger = new Turbocharger();
