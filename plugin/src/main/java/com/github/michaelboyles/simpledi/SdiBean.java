@@ -2,7 +2,6 @@ package com.github.michaelboyles.simpledi;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
-import org.checkerframework.checker.units.qual.A;
 
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
@@ -12,7 +11,6 @@ import javax.lang.model.type.TypeMirror;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 /**
@@ -48,11 +46,11 @@ public class SdiBean {
                 )
             )
             .map(type -> type.getQualifiedName().toString())
-            .collect(Collectors.toList());
+            .toList();
     }
 
     private Collection<TypeElement> getAllInterfaces() {
-        return typeElement.getInterfaces().stream().map(this::getElement).collect(Collectors.toList());
+        return typeElement.getInterfaces().stream().map(this::getElement).toList();
     }
 
     private Collection<TypeElement> getAllSuperclasses() {

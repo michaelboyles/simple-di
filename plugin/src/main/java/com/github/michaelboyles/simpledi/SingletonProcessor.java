@@ -114,7 +114,7 @@ public class SingletonProcessor extends AbstractProcessor {
         }
         return discoveredBeans.all().stream()
             .sorted(Comparator.comparing(bean -> fqnToNumDependents.get(bean.getFqn())))
-            .collect(Collectors.toList());
+            .toList();
     }
 
     private long getNumDependencies(Map<String, Long> fqnToNumDependents,
