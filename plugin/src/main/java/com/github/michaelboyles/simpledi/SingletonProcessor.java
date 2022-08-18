@@ -32,7 +32,6 @@ import java.util.stream.Collectors;
 
 import static com.github.michaelboyles.simpledi.Const.COLLECTION_TO_FACTORY_METHOD;
 import static com.github.michaelboyles.simpledi.Const.INJECTOR_CLASS_NAME;
-import static java.util.Collections.emptyList;
 
 /**
  * An annotation processor which scans for classes annotated with {@link javax.inject.Singleton} and creates a
@@ -45,7 +44,8 @@ public class SingletonProcessor extends AbstractProcessor {
     @SneakyThrows
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        List<SdiBean> sortedBeans = sortBeansByNumDependencies(getBeans(roundEnv));
+        DiscoveredBeans beans = findBeans(roundEnv);
+        List<SdiBean> sortedBeans = sortBeansByNumDependencies(beans);
 
         if (!sortedBeans.isEmpty()) {
             JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(INJECTOR_CLASS_NAME);
@@ -58,11 +58,13 @@ public class SingletonProcessor extends AbstractProcessor {
         return false;
     }
 
-    private List<SdiBean> getBeans(RoundEnvironment roundEnv) {
-        return roundEnv.getElementsAnnotatedWith(Singleton.class).stream()
-            .filter(singleton -> singleton.asType().getKind() == TypeKind.DECLARED)
-            .map(singleton -> new SdiBean(getName(singleton), (TypeElement) singleton, getConstructor(singleton)))
-            .collect(Collectors.toList());
+    private DiscoveredBeans findBeans(RoundEnvironment roundEnv) {
+        return new DiscoveredBeans(
+            roundEnv.getElementsAnnotatedWith(Singleton.class).stream()
+                .filter(singleton -> singleton.asType().getKind() == TypeKind.DECLARED)
+                .map(singleton -> new SdiBean(getName(singleton), (TypeElement) singleton, getConstructor(singleton)))
+                .toList()
+        );
     }
 
     private String getName(Element singleton) {
@@ -102,27 +104,21 @@ public class SingletonProcessor extends AbstractProcessor {
         );
     }
 
-    private List<SdiBean> sortBeansByNumDependencies(List<SdiBean> beans) {
+    private List<SdiBean> sortBeansByNumDependencies(DiscoveredBeans discoveredBeans) {
         Map<String, Long> fqnToNumDependents = new HashMap<>();
-        Map<String, List<SdiBean>> fqnToBeans = new HashMap<>();
-        for (SdiBean bean : beans) {
-            for (String fqn : bean.getAllFqns()) {
-                fqnToBeans.computeIfAbsent(fqn, k -> new ArrayList<>()).add(bean);
-            }
+        for (SdiBean bean : discoveredBeans.all()) {
+            getNumDependencies(fqnToNumDependents, discoveredBeans, bean);
         }
-        for (SdiBean bean : beans) {
-            getNumDependencies(fqnToNumDependents, fqnToBeans, bean);
+        for (SdiBean bean : discoveredBeans.all()) {
+            addInjectMethods(discoveredBeans, bean);
         }
-        for (SdiBean bean : beans) {
-            addInjectMethods(fqnToBeans, bean);
-        }
-        return beans.stream()
+        return discoveredBeans.all().stream()
             .sorted(Comparator.comparing(bean -> fqnToNumDependents.get(bean.getFqn())))
             .collect(Collectors.toList());
     }
 
     private long getNumDependencies(Map<String, Long> fqnToNumDependents,
-                                    Map<String, List<SdiBean>> fqnToBeans,
+                                    DiscoveredBeans discoveredBeans,
                                     SdiBean bean) {
         final Long SENTINEL = -123L;
 
@@ -137,25 +133,25 @@ public class SingletonProcessor extends AbstractProcessor {
             if (paramType.getKind() != TypeKind.DECLARED) {
                 throw new RuntimeException("Unsupported type in constructor: " + paramType);
             }
-            SdiDependency dependency = findDependenciesForParam(fqnToBeans, bean, parameter);
+            SdiDependency dependency = findDependenciesForParam(discoveredBeans, bean, parameter);
             bean.addDependency(dependency);
             for (SdiBean dependentBean : dependency.getBeans()) {
-                numDependencies += (1 + getNumDependencies(fqnToNumDependents, fqnToBeans, dependentBean));
+                numDependencies += (1 + getNumDependencies(fqnToNumDependents, discoveredBeans, dependentBean));
             }
         }
         fqnToNumDependents.put(bean.getFqn(), numDependencies);
         return numDependencies;
     }
 
-    private SdiDependency findDependenciesForParam(Map<String, List<SdiBean>> fqnToBeans, SdiBean bean,
+    private SdiDependency findDependenciesForParam(DiscoveredBeans discoveredBeans, SdiBean bean,
                                                    VariableElement parameter) {
         String paramTypeFqn = parameter.asType().toString();
-        List<SdiBean> candidates = new ArrayList<>(fqnToBeans.getOrDefault(paramTypeFqn, emptyList()));
+        List<SdiBean> candidates = new ArrayList<>(discoveredBeans.forFqn(paramTypeFqn));
         if (candidates.isEmpty()) {
             for (Map.Entry<Class<?>, CollectionFactoryMethod> entry : COLLECTION_TO_FACTORY_METHOD.entrySet()) {
                 if (paramTypeFqn.startsWith(entry.getKey().getName())) {
                     DeclaredType contentsType = getCollectionContentsType(parameter);
-                    List<SdiBean> contents = fqnToBeans.getOrDefault(contentsType.toString(), emptyList());
+                    List<SdiBean> contents = discoveredBeans.forFqn(contentsType.toString());
                     return new SdiCollectionDependency(entry.getValue(), contents);
                 }
             }
@@ -186,10 +182,10 @@ public class SingletonProcessor extends AbstractProcessor {
         return (DeclaredType) typeArguments.get(0);
     }
 
-    private void addInjectMethods(Map<String, List<SdiBean>> fqnToBeans, SdiBean bean) {
+    private void addInjectMethods(DiscoveredBeans discoveredBeans, SdiBean bean) {
         for (ExecutableElement method : getInjectAnnotatedMethods(bean)) {
             List<SdiDependency> dependencies = method.getParameters().stream()
-                .map(param -> findDependenciesForParam(fqnToBeans, bean, param))
+                .map(param -> findDependenciesForParam(discoveredBeans, bean, param))
                 .toList();
             bean.addInjectMethod(new InjectMethod(method, dependencies));
         }
