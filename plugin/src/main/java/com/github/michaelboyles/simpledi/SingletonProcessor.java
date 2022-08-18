@@ -44,8 +44,11 @@ public class SingletonProcessor extends AbstractProcessor {
     @SneakyThrows
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
-        DiscoveredBeans beans = findBeans(roundEnv);
-        List<SdiBean> sortedBeans = sortBeansByNumDependencies(beans);
+        DiscoveredBeans discoveredBeans = findBeans(roundEnv);
+        List<SdiBean> sortedBeans = sortBeansByNumDependencies(discoveredBeans);
+        for (SdiBean bean : discoveredBeans.all()) {
+            addInjectMethods(discoveredBeans, bean);
+        }
 
         if (!sortedBeans.isEmpty()) {
             JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(INJECTOR_CLASS_NAME);
@@ -108,9 +111,6 @@ public class SingletonProcessor extends AbstractProcessor {
         Map<String, Long> fqnToNumDependents = new HashMap<>();
         for (SdiBean bean : discoveredBeans.all()) {
             getNumDependencies(fqnToNumDependents, discoveredBeans, bean);
-        }
-        for (SdiBean bean : discoveredBeans.all()) {
-            addInjectMethods(discoveredBeans, bean);
         }
         return discoveredBeans.all().stream()
             .sorted(Comparator.comparing(bean -> fqnToNumDependents.get(bean.getFqn())))
