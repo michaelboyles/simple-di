@@ -43,21 +43,20 @@ public class SingletonProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         DiscoveredBeans discoveredBeans = findBeans(roundEnv);
+        if (discoveredBeans.all().isEmpty()) return false;
+
         addDependenciesToBeans(discoveredBeans);
         for (SdiBean bean : discoveredBeans.all()) {
             addInjectMethods(discoveredBeans, bean);
         }
         List<SdiBean> sortedBeans = discoveredBeans.byNumDependencies();
 
-        if (!sortedBeans.isEmpty()) {
-            JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(INJECTOR_CLASS_NAME);
-            try (PrintWriter out = new PrintWriter(builderFile.openWriter())) {
-                InjectorClassGenerator generator = new InjectorClassGenerator(INJECTOR_CLASS_NAME, sortedBeans);
-                generator.generateClass().writeTo(out);
-            }
-            return true;
+        JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(INJECTOR_CLASS_NAME);
+        try (PrintWriter out = new PrintWriter(builderFile.openWriter())) {
+            InjectorClassGenerator generator = new InjectorClassGenerator(INJECTOR_CLASS_NAME, sortedBeans);
+            generator.generateClass().writeTo(out);
         }
-        return false;
+        return true;
     }
 
     private DiscoveredBeans findBeans(RoundEnvironment roundEnv) {
