@@ -45,10 +45,11 @@ public class SingletonProcessor extends AbstractProcessor {
     @Override
     public boolean process(Set<? extends TypeElement> annotations, RoundEnvironment roundEnv) {
         DiscoveredBeans discoveredBeans = findBeans(roundEnv);
-        List<SdiBean> sortedBeans = sortBeansByNumDependencies(discoveredBeans);
+        addDependenciesToBeans(discoveredBeans);
         for (SdiBean bean : discoveredBeans.all()) {
             addInjectMethods(discoveredBeans, bean);
         }
+        List<SdiBean> sortedBeans = sortBeansByNumDependencies(discoveredBeans);
 
         if (!sortedBeans.isEmpty()) {
             JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(INJECTOR_CLASS_NAME);
@@ -107,19 +108,30 @@ public class SingletonProcessor extends AbstractProcessor {
         );
     }
 
+    private void addDependenciesToBeans(DiscoveredBeans discoveredBeans) {
+        for (SdiBean bean : discoveredBeans.all()) {
+            for (VariableElement parameter : bean.constructor().getParameters()) {
+                TypeMirror paramType = parameter.asType();
+                if (paramType.getKind() != TypeKind.DECLARED) {
+                    throw new RuntimeException("Unsupported type in constructor: " + paramType);
+                }
+                SdiDependency dependency = findDependenciesForParam(discoveredBeans, bean, parameter);
+                bean.addDependency(dependency);
+            }
+        }
+    }
+
     private List<SdiBean> sortBeansByNumDependencies(DiscoveredBeans discoveredBeans) {
         Map<String, Long> fqnToNumDependents = new HashMap<>();
         for (SdiBean bean : discoveredBeans.all()) {
-            getNumDependencies(fqnToNumDependents, discoveredBeans, bean);
+            getNumDependencies(fqnToNumDependents, bean);
         }
         return discoveredBeans.all().stream()
             .sorted(Comparator.comparing(bean -> fqnToNumDependents.get(bean.getFqn())))
             .toList();
     }
 
-    private long getNumDependencies(Map<String, Long> fqnToNumDependents,
-                                    DiscoveredBeans discoveredBeans,
-                                    SdiBean bean) {
+    private long getNumDependencies(Map<String, Long> fqnToNumDependents, SdiBean bean) {
         final Long SENTINEL = -123L;
 
         Long prevNumDeps = fqnToNumDependents.get(bean.getFqn());
@@ -128,15 +140,9 @@ public class SingletonProcessor extends AbstractProcessor {
 
         fqnToNumDependents.put(bean.getFqn(), SENTINEL);
         long numDependencies = 0;
-        for (VariableElement parameter : bean.constructor().getParameters()) {
-            TypeMirror paramType = parameter.asType();
-            if (paramType.getKind() != TypeKind.DECLARED) {
-                throw new RuntimeException("Unsupported type in constructor: " + paramType);
-            }
-            SdiDependency dependency = findDependenciesForParam(discoveredBeans, bean, parameter);
-            bean.addDependency(dependency);
+        for (SdiDependency dependency : bean.dependencies()) {
             for (SdiBean dependentBean : dependency.getBeans()) {
-                numDependencies += (1 + getNumDependencies(fqnToNumDependents, discoveredBeans, dependentBean));
+                numDependencies += (1 + getNumDependencies(fqnToNumDependents, dependentBean));
             }
         }
         fqnToNumDependents.put(bean.getFqn(), numDependencies);
