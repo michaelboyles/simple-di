@@ -20,6 +20,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.lang.model.type.WildcardType;
 import javax.tools.JavaFileObject;
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -125,8 +126,8 @@ public class SingletonProcessor extends AbstractProcessor {
         if (candidates.isEmpty()) {
             for (Map.Entry<Class<?>, CollectionFactoryMethod> entry : COLLECTION_TO_FACTORY_METHOD.entrySet()) {
                 if (paramTypeFqn.startsWith(entry.getKey().getName())) {
-                    DeclaredType contentsType = getCollectionContentsType(parameter);
-                    List<SdiBean> contents = discoveredBeans.forFqn(contentsType.toString());
+                    String contentsType = getCollectionContentsType(parameter);
+                    List<SdiBean> contents = discoveredBeans.forFqn(contentsType);
                     return new SdiCollectionDependency(entry.getValue(), contents);
                 }
             }
@@ -149,12 +150,28 @@ public class SingletonProcessor extends AbstractProcessor {
         return new SdiBasicDependency(candidates.get(0));
     }
 
-    private DeclaredType getCollectionContentsType(VariableElement collectionParameter) {
+    private String getCollectionContentsType(VariableElement collectionParameter) {
         List<? extends TypeMirror> typeArguments = ((DeclaredType) collectionParameter.asType()).getTypeArguments();
         if (typeArguments.size() != 1) {
             throw new RuntimeException("Collection has wrong number of type params: " + typeArguments.size());
         }
-        return (DeclaredType) typeArguments.get(0);
+        TypeMirror typeArgument = typeArguments.get(0);
+        if (typeArgument.getKind() == TypeKind.DECLARED) {
+            return typeArgument.toString();
+        }
+        if (typeArgument.getKind() == TypeKind.WILDCARD) {
+            WildcardType wildcardType = (WildcardType) typeArgument;
+            if (wildcardType.getSuperBound() != null) {
+                // TODO how to resolve this without running into circular dependencies?
+                throw new RuntimeException("Super bound is not supported");
+            }
+            if (wildcardType.getExtendsBound() != null) {
+                return wildcardType.getExtendsBound().toString();
+            }
+        }
+        throw new RuntimeException(
+            "Unsupported collection type %s in parameter '%s'".formatted(typeArgument.getKind(), collectionParameter)
+        );
     }
 
     private void addInjectMethods(DiscoveredBeans discoveredBeans, SdiBean bean) {

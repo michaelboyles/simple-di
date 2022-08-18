@@ -11,10 +11,10 @@ import static java.util.Collections.emptyList;
 public class Car {
     private final Engine engine;
     private final Seat driversSeat;
-    private final List<Seat> seats;
+    private final List<? extends Seat> seats;
 
     @Inject
-    public Car(Engine engine, @Named("driver") Seat driversSeat, List<Seat> seats) {
+    public Car(Engine engine, @Named("driver") Seat driversSeat, List<? extends Seat> seats) {
         this.engine = engine;
         this.driversSeat = driversSeat;
         this.seats = seats;
