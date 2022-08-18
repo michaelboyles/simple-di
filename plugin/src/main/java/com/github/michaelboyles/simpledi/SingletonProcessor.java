@@ -23,8 +23,6 @@ import javax.lang.model.type.TypeMirror;
 import javax.tools.JavaFileObject;
 import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -49,7 +47,7 @@ public class SingletonProcessor extends AbstractProcessor {
         for (SdiBean bean : discoveredBeans.all()) {
             addInjectMethods(discoveredBeans, bean);
         }
-        List<SdiBean> sortedBeans = sortBeansByNumDependencies(discoveredBeans);
+        List<SdiBean> sortedBeans = discoveredBeans.byNumDependencies();
 
         if (!sortedBeans.isEmpty()) {
             JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(INJECTOR_CLASS_NAME);
@@ -119,34 +117,6 @@ public class SingletonProcessor extends AbstractProcessor {
                 bean.addDependency(dependency);
             }
         }
-    }
-
-    private List<SdiBean> sortBeansByNumDependencies(DiscoveredBeans discoveredBeans) {
-        Map<String, Long> fqnToNumDependents = new HashMap<>();
-        for (SdiBean bean : discoveredBeans.all()) {
-            getNumDependencies(fqnToNumDependents, bean);
-        }
-        return discoveredBeans.all().stream()
-            .sorted(Comparator.comparing(bean -> fqnToNumDependents.get(bean.getFqn())))
-            .toList();
-    }
-
-    private long getNumDependencies(Map<String, Long> fqnToNumDependents, SdiBean bean) {
-        final Long SENTINEL = -123L;
-
-        Long prevNumDeps = fqnToNumDependents.get(bean.getFqn());
-        if (SENTINEL.equals(prevNumDeps)) throw new RuntimeException("Circular dependency!");
-        if (prevNumDeps != null) return prevNumDeps;
-
-        fqnToNumDependents.put(bean.getFqn(), SENTINEL);
-        long numDependencies = 0;
-        for (SdiDependency dependency : bean.dependencies()) {
-            for (SdiBean dependentBean : dependency.getBeans()) {
-                numDependencies += (1 + getNumDependencies(fqnToNumDependents, dependentBean));
-            }
-        }
-        fqnToNumDependents.put(bean.getFqn(), numDependencies);
-        return numDependencies;
     }
 
     private SdiDependency findDependenciesForParam(DiscoveredBeans discoveredBeans, SdiBean bean,
