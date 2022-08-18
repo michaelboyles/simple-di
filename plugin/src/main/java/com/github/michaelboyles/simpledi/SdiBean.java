@@ -2,6 +2,7 @@ package com.github.michaelboyles.simpledi;
 
 import lombok.Data;
 import lombok.experimental.Accessors;
+import org.checkerframework.checker.units.qual.A;
 
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
@@ -21,12 +22,17 @@ import java.util.stream.Stream;
 @Accessors(fluent = true)
 public class SdiBean {
     private final List<SdiDependency> dependencies = new ArrayList<>();
+    private final List<InjectMethod> injectMethods = new ArrayList<>();
     private final String name;
     private final TypeElement typeElement;
     private final ExecutableElement constructor;
 
     public void addDependency(SdiDependency dependency) {
         dependencies.add(dependency);
+    }
+
+    public void addInjectMethod(InjectMethod injectMethod) {
+        injectMethods.add(injectMethod);
     }
 
     public String getFqn() {

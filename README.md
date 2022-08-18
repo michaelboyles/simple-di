@@ -17,11 +17,14 @@ public final class SimpleDIContext {
 
     public SimpleDIContext() {
         PassengerSeat passengerSeat = new PassengerSeat();
+        Driver driver = new Driver();
         DriversSeat driversSeat = new DriversSeat();
         Turbocharger turbocharger = new Turbocharger();
         Engine engine = new Engine(turbocharger);
         Car car = new Car(engine, driversSeat, List.of(passengerSeat, driversSeat));
+        car.addDriver(driver);
         nameToBean.put("passengerSeat", passengerSeat);
+        nameToBean.put("driver", driver);
         nameToBean.put("driversSeat", driversSeat);
         nameToBean.put("turbocharger", turbocharger);
         nameToBean.put("engine", engine);
@@ -45,14 +48,13 @@ updated.
 ### Implemented
 
 - Provide beans by annotating classes with [`@Singleton`](https://docs.oracle.com/javaee/6/api/javax/inject/Singleton.html)
-- Constructor injection
+- Constructor and method injection
 - Disambiguate constructors with [`@Inject`](https://docs.oracle.com/javaee/6/api/javax/inject/Inject.html)
 - Disambiguate beans with [`@Named`](https://docs.oracle.com/javaee/6/api/javax/inject/Named.html)
 - Autowire collections (List, Set, etc.)
 
 ### Might be implemented
 
- - Method injection
  - Circular dependency resolution
 
 ### Won't be implemented

@@ -44,21 +44,20 @@ public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans
             addBeanInstantiation(builder, bean);
         }
         for (SdiBean bean : sortedBeans) {
+            addInjectMethodInvocations(builder, bean);
+        }
+        for (SdiBean bean : sortedBeans) {
             addBeanRegistration(builder, bean);
         }
         return builder.build();
     }
 
     private void addBeanInstantiation(MethodSpec.Builder methodBuilder, SdiBean bean) {
-        CodeBlock.Builder builder = CodeBlock.builder()
-            .add("$T $L = new $T(", bean.typeElement(), bean.getIdentifier(), bean.typeElement());
-        for (int i = 0; i < bean.dependencies().size(); ++i) {
-            builder.add(bean.dependencies().get(i).getArgumentExpression());
-            if (i < (bean.dependencies().size() - 1)) {
-                builder.add(", ");
-            }
-        }
-        methodBuilder.addStatement(builder.add(")").build());
+        methodBuilder.addStatement(
+            "$T $L = new $T($L)",
+            bean.typeElement(), bean.getIdentifier(), bean.typeElement(),
+            getArgumentList(bean.dependencies())
+        );
     }
 
     private void addBeanRegistration(MethodSpec.Builder methodBuilder, SdiBean bean) {
@@ -73,5 +72,27 @@ public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans
             .addParameter(String.class, "name")
             .addStatement("return $L.get($L)", MAP_FIELD_NAME, "name")
             .build();
+    }
+
+    private void addInjectMethodInvocations(MethodSpec.Builder methodBuilder, SdiBean bean) {
+        for (InjectMethod method : bean.injectMethods()) {
+            methodBuilder.addStatement(
+                "$L.$L($L)",
+                bean.getIdentifier(),
+                method.element().getSimpleName().toString(),
+                getArgumentList(method.dependencies())
+            );
+        }
+    }
+
+    private CodeBlock getArgumentList(List<SdiDependency> dependencies) {
+        CodeBlock.Builder builder = CodeBlock.builder();
+        for (int i = 0; i < dependencies.size(); ++i) {
+            builder.add(dependencies.get(i).getArgumentExpression());
+            if (i < (dependencies.size() - 1)) {
+                builder.add(", ");
+            }
+        }
+        return builder.build();
     }
 }

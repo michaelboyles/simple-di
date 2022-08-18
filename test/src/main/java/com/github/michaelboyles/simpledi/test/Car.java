@@ -24,4 +24,9 @@ public class Car {
     public Car() {
         this(null, null, emptyList());
     }
+
+    @Inject
+    public void addDriver(Driver driver) {
+        System.out.println("Added driver "  + driver);
+    }
 }

@@ -113,6 +113,9 @@ public class SingletonProcessor extends AbstractProcessor {
         for (SdiBean bean : beans) {
             getNumDependencies(fqnToNumDependents, fqnToBeans, bean);
         }
+        for (SdiBean bean : beans) {
+            addInjectMethods(fqnToBeans, bean);
+        }
         return beans.stream()
             .sorted(Comparator.comparing(bean -> fqnToNumDependents.get(bean.getFqn())))
             .collect(Collectors.toList());
@@ -181,5 +184,22 @@ public class SingletonProcessor extends AbstractProcessor {
             throw new RuntimeException("Collection has wrong number of type params: " + typeArguments.size());
         }
         return (DeclaredType) typeArguments.get(0);
+    }
+
+    private void addInjectMethods(Map<String, List<SdiBean>> fqnToBeans, SdiBean bean) {
+        for (ExecutableElement method : getInjectAnnotatedMethods(bean)) {
+            List<SdiDependency> dependencies = method.getParameters().stream()
+                .map(param -> findDependenciesForParam(fqnToBeans, bean, param))
+                .toList();
+            bean.addInjectMethod(new InjectMethod(method, dependencies));
+        }
+    }
+
+    private List<ExecutableElement> getInjectAnnotatedMethods(SdiBean bean) {
+        return bean.typeElement().getEnclosedElements().stream()
+            .filter(element -> element.getKind() == ElementKind.METHOD)
+            .filter(element -> element.getAnnotation(Inject.class) != null)
+            .map(ExecutableElement.class::cast)
+            .toList();
     }
 }
