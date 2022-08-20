@@ -5,11 +5,15 @@ import lombok.AllArgsConstructor;
 
 import java.util.List;
 
+import static java.util.Collections.emptyList;
+
 /**
- * A standard dependency, directly upon another bean.
+ * A dependency via the indirection of a {@link javax.inject.Provider}.
  */
 @AllArgsConstructor
-class SdiBasicDependency implements SdiDependency {
+class SdiProviderDependency implements SdiDependency {
+    static final String PROVIDER_IDENTIFIER_SUFFIX = "Provider";
+
     private final SdiBean bean;
 
     @Override
@@ -19,11 +23,11 @@ class SdiBasicDependency implements SdiDependency {
 
     @Override
     public List<SdiBean> directBeans() {
-        return allBeans();
+        return emptyList();
     }
 
     @Override
     public CodeBlock getArgumentExpression() {
-        return CodeBlock.of("$L", bean.getIdentifier());
+        return CodeBlock.of("$L", bean.getIdentifier() + PROVIDER_IDENTIFIER_SUFFIX);
     }
 }

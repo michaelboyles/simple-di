@@ -2,6 +2,7 @@ package com.github.michaelboyles.simpledi.test;
 
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import java.util.List;
 
@@ -14,7 +15,7 @@ public class Car {
     private final List<? extends Seat> seats;
 
     @Inject
-    public Car(Engine engine, @Named("driver") Seat driversSeat, List<? extends Seat> seats) {
+    public Car(Engine engine, @Named("driver") Seat driversSeat, List<? extends Seat> seats, Provider<Car> self) {
         this.engine = engine;
         this.driversSeat = driversSeat;
         this.seats = seats;
@@ -22,7 +23,7 @@ public class Car {
 
     // Just an example of a constructor that's ignored due to @Inject on the other one
     public Car() {
-        this(null, null, emptyList());
+        this(null, null, emptyList(), null);
     }
 
     @Inject

@@ -13,6 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.github.michaelboyles.simpledi.Const.INJECTOR_PACKAGE_NAME;
+import static com.github.michaelboyles.simpledi.SdiProviderDependency.PROVIDER_IDENTIFIER_SUFFIX;
 
 /**
  * Generates a class which performs dependency injection.
@@ -40,8 +41,12 @@ public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans
     private MethodSpec getConstructor() {
         MethodSpec.Builder builder = MethodSpec.constructorBuilder()
             .addModifiers(Modifier.PUBLIC);
+        List<SdiBean> providedBeans = getProvidedBeans(sortedBeans);
+        for (SdiBean bean : providedBeans) {
+            addProviderInstantiation(builder, bean);
+        }
         for (SdiBean bean : sortedBeans) {
-            addBeanInstantiation(builder, bean);
+            addBeanInstantiation(builder, bean, providedBeans.contains(bean));
         }
         for (SdiBean bean : sortedBeans) {
             addInjectMethodInvocations(builder, bean);
@@ -52,12 +57,32 @@ public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans
         return builder.build();
     }
 
-    private void addBeanInstantiation(MethodSpec.Builder methodBuilder, SdiBean bean) {
+    private List<SdiBean> getProvidedBeans(List<SdiBean> beans) {
+        return beans.stream()
+            .map(SdiBean::getProvidedBeans)
+            .flatMap(List::stream)
+            .distinct()
+            .toList();
+    }
+
+    private void addProviderInstantiation(MethodSpec.Builder methodBuilder, SdiBean bean) {
+        methodBuilder.addStatement(
+            "$T<$T> $L$L = new $T()", MutableProvider.class, bean.typeElement(), bean.getIdentifier(),
+            PROVIDER_IDENTIFIER_SUFFIX, MutableProvider.class
+        );
+    }
+
+    private void addBeanInstantiation(MethodSpec.Builder methodBuilder, SdiBean bean, boolean isProvided) {
         methodBuilder.addStatement(
             "$T $L = new $T($L)",
             bean.typeElement(), bean.getIdentifier(), bean.typeElement(),
             getArgumentList(bean.dependencies())
         );
+        if (isProvided) {
+            methodBuilder.addStatement(
+                "$L$L.set($L)", bean.getIdentifier(), PROVIDER_IDENTIFIER_SUFFIX, bean.getIdentifier()
+            );
+        }
     }
 
     private void addBeanRegistration(MethodSpec.Builder methodBuilder, SdiBean bean) {

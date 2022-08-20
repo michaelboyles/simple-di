@@ -19,7 +19,12 @@ public class SdiCollectionDependency implements SdiDependency {
     }
 
     @Override
-    public List<SdiBean> getBeans() {
+    public List<SdiBean> allBeans() {
+        return contents;
+    }
+
+    @Override
+    public List<SdiBean> directBeans() {
         return contents;
     }
 

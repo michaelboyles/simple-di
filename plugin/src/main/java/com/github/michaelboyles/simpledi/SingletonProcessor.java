@@ -10,6 +10,7 @@ import javax.annotation.processing.SupportedAnnotationTypes;
 import javax.annotation.processing.SupportedSourceVersion;
 import javax.inject.Inject;
 import javax.inject.Named;
+import javax.inject.Provider;
 import javax.inject.Singleton;
 import javax.lang.model.SourceVersion;
 import javax.lang.model.element.Element;
@@ -122,7 +123,13 @@ public class SingletonProcessor extends AbstractProcessor {
     private SdiDependency findDependenciesForParam(DiscoveredBeans discoveredBeans, SdiBean bean,
                                                    VariableElement parameter) {
         String paramTypeFqn = parameter.asType().toString();
-        List<SdiBean> candidates = new ArrayList<>(discoveredBeans.beansExtending(paramTypeFqn));
+        boolean isProvider = paramTypeFqn.startsWith(Provider.class.getName());
+        if (isProvider) {
+            return new SdiProviderDependency(
+                getProviderContents(bean, parameter, discoveredBeans)
+            );
+        }
+        List<SdiBean> candidates = discoveredBeans.beansExtending(paramTypeFqn);
         if (candidates.isEmpty()) {
             for (Map.Entry<Class<?>, CollectionFactoryMethod> entry : COLLECTION_TO_FACTORY_METHOD.entrySet()) {
                 if (paramTypeFqn.startsWith(entry.getKey().getName())) {
@@ -134,27 +141,13 @@ public class SingletonProcessor extends AbstractProcessor {
                 "%s requires a bean of type %s which does not exist".formatted(bean.getFqn(), paramTypeFqn)
             );
         }
-        Named named = parameter.getAnnotation(Named.class);
-        if (named != null) {
-            candidates.removeIf(candidate -> !candidate.name().equals(named.value()));
-        }
-        if (candidates.size() > 1) {
-            throw new RuntimeException(
-                "Ambiguous dependency. %s requires a bean of type %s and there are %d candidates: %s".formatted(
-                    bean.getFqn(), paramTypeFqn, candidates.size(),
-                    candidates.stream().map(SdiBean::getFqn).collect(Collectors.joining(", "))
-                )
-            );
-        }
-        return new SdiBasicDependency(candidates.get(0));
+        return new SdiBasicDependency(
+            tryToDisambiguateWithNamedAnnotation(candidates, parameter)
+        );
     }
 
     private List<SdiBean> getCollectionContents(VariableElement collectionParameter, DiscoveredBeans discoveredBeans) {
-        List<? extends TypeMirror> typeArguments = ((DeclaredType) collectionParameter.asType()).getTypeArguments();
-        if (typeArguments.size() != 1) {
-            throw new RuntimeException("Collection has wrong number of type params: " + typeArguments.size());
-        }
-        TypeMirror typeArgument = typeArguments.get(0);
+        TypeMirror typeArgument = getSingleGenericTypeParam(collectionParameter);
         if (typeArgument.getKind() == TypeKind.DECLARED) {
             return discoveredBeans.beansExtending(typeArgument.toString());
         }
@@ -172,8 +165,54 @@ public class SingletonProcessor extends AbstractProcessor {
             }
         }
         throw new RuntimeException(
-            "Unsupported collection type %s in parameter '%s'".formatted(typeArgument.getKind(), collectionParameter)
+            "Unsupported type %s in parameter '%s %s'".formatted(
+                typeArgument.getKind(), collectionParameter.asType(), collectionParameter
+            )
         );
+    }
+
+    private SdiBean tryToDisambiguateWithNamedAnnotation(List<SdiBean> candidates, VariableElement parameter) {
+        candidates = new ArrayList<>(candidates);
+        Named named = parameter.getAnnotation(Named.class);
+        if (named != null) {
+            candidates.removeIf(candidate -> !candidate.name().equals(named.value()));
+        }
+        if (candidates.size() > 1) {
+            throw new RuntimeException(
+                "Ambiguous dependency. Parameter '%s %s' has %d candidates: %s".formatted(
+                    parameter.asType(), parameter, candidates.size(),
+                    candidates.stream().map(SdiBean::getFqn).collect(Collectors.joining(", "))
+                )
+            );
+        }
+        return candidates.get(0);
+    }
+
+    private TypeMirror getSingleGenericTypeParam(VariableElement variable) {
+        List<? extends TypeMirror> typeArguments = ((DeclaredType) variable.asType()).getTypeArguments();
+        if (typeArguments == null || typeArguments.isEmpty()) {
+            throw new RuntimeException(
+                "Parameter '%s %s' uses raw type".formatted(variable.asType(), variable.getSimpleName())
+            );
+        }
+        if (typeArguments.size() != 1) {
+            throw new RuntimeException(
+                "Parameter '%s %s' has unexpected number of type params: %s".formatted(
+                    variable.asType(), variable.getSimpleName(), typeArguments.size()
+                )
+            );
+        }
+        return typeArguments.get(0);
+    }
+
+    private SdiBean getProviderContents(SdiBean sourceBean, VariableElement provider, DiscoveredBeans discoveredBeans) {
+        List<SdiBean> providerContents = getCollectionContents(provider, discoveredBeans);
+        if (providerContents.isEmpty()) {
+            throw new RuntimeException(
+                "%s requires a bean of type %s which does not exist".formatted(sourceBean.getFqn(), provider.asType())
+            );
+        }
+        return tryToDisambiguateWithNamedAnnotation(providerContents, provider);
     }
 
     private void addInjectMethods(DiscoveredBeans discoveredBeans, SdiBean bean) {

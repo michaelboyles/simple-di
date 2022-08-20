@@ -72,4 +72,13 @@ public class SdiBean {
         String shortName = fqn.substring(fqn.lastIndexOf('.') + 1);
         return shortName.substring(0, 1).toLowerCase() + shortName.substring(1);
     }
+
+    public List<SdiBean> getProvidedBeans() {
+        return dependencies.stream()
+            .filter(SdiProviderDependency.class::isInstance)
+            .map(SdiProviderDependency.class::cast)
+            .map(SdiProviderDependency::allBeans)
+            .flatMap(List::stream)
+            .toList();
+    }
 }

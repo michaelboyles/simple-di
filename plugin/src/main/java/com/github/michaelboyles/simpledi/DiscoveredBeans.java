@@ -55,7 +55,7 @@ class DiscoveredBeans {
         fqnToNumDependents.put(bean.getFqn(), SENTINEL);
         long numDependencies = 0;
         for (SdiDependency dependency : bean.dependencies()) {
-            for (SdiBean dependentBean : dependency.getBeans()) {
+            for (SdiBean dependentBean : dependency.directBeans()) {
                 numDependencies += (1 + getNumDependencies(fqnToNumDependents, dependentBean));
             }
         }

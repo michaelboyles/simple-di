@@ -52,10 +52,7 @@ updated.
 - Disambiguate constructors with [`@Inject`](https://docs.oracle.com/javaee/6/api/javax/inject/Inject.html)
 - Disambiguate beans with [`@Named`](https://docs.oracle.com/javaee/6/api/javax/inject/Named.html)
 - Autowire collections (List, Set, etc.), including wildcards
-
-### Might be implemented
-
- - Circular dependency resolution
+- Circular dependency resolution with [`Provider<T>`](https://docs.oracle.com/javaee/6/api/javax/inject/Provider.html)
 
 ### Won't be implemented
 
