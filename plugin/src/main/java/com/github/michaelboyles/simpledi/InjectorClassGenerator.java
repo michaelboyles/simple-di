@@ -67,7 +67,7 @@ public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans
 
     private void addProviderInstantiation(MethodSpec.Builder methodBuilder, SdiBean bean) {
         methodBuilder.addStatement(
-            "$T<$T> $L$L = new $T()", MutableProvider.class, bean.typeElement(), bean.getIdentifier(),
+            "$T<$T> $L$L = new $T<>()", MutableProvider.class, bean.typeElement(), bean.getIdentifier(),
             PROVIDER_IDENTIFIER_SUFFIX, MutableProvider.class
         );
     }
