@@ -25,8 +25,14 @@ class DiscoveredBeans {
         return beans;
     }
 
-    public List<SdiBean> forFqn(String fqn) {
+    public List<SdiBean> beansExtending(String fqn) {
         return unmodifiableList(fqnToBeans.getOrDefault(fqn, emptyList()));
+    }
+
+    public List<SdiBean> beansWithExactFqn(String fqn) {
+        return beansExtending(fqn).stream()
+            .filter(bean -> bean.getFqn().equals(fqn))
+            .toList();
     }
 
     public List<SdiBean> byNumDependencies() {

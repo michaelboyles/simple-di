@@ -122,12 +122,11 @@ public class SingletonProcessor extends AbstractProcessor {
     private SdiDependency findDependenciesForParam(DiscoveredBeans discoveredBeans, SdiBean bean,
                                                    VariableElement parameter) {
         String paramTypeFqn = parameter.asType().toString();
-        List<SdiBean> candidates = new ArrayList<>(discoveredBeans.forFqn(paramTypeFqn));
+        List<SdiBean> candidates = new ArrayList<>(discoveredBeans.beansExtending(paramTypeFqn));
         if (candidates.isEmpty()) {
             for (Map.Entry<Class<?>, CollectionFactoryMethod> entry : COLLECTION_TO_FACTORY_METHOD.entrySet()) {
                 if (paramTypeFqn.startsWith(entry.getKey().getName())) {
-                    String contentsType = getCollectionContentsType(parameter);
-                    List<SdiBean> contents = discoveredBeans.forFqn(contentsType);
+                    List<SdiBean> contents = getCollectionContents(parameter, discoveredBeans);
                     return new SdiCollectionDependency(entry.getValue(), contents);
                 }
             }
@@ -150,23 +149,26 @@ public class SingletonProcessor extends AbstractProcessor {
         return new SdiBasicDependency(candidates.get(0));
     }
 
-    private String getCollectionContentsType(VariableElement collectionParameter) {
+    private List<SdiBean> getCollectionContents(VariableElement collectionParameter, DiscoveredBeans discoveredBeans) {
         List<? extends TypeMirror> typeArguments = ((DeclaredType) collectionParameter.asType()).getTypeArguments();
         if (typeArguments.size() != 1) {
             throw new RuntimeException("Collection has wrong number of type params: " + typeArguments.size());
         }
         TypeMirror typeArgument = typeArguments.get(0);
         if (typeArgument.getKind() == TypeKind.DECLARED) {
-            return typeArgument.toString();
+            return discoveredBeans.beansExtending(typeArgument.toString());
         }
         if (typeArgument.getKind() == TypeKind.WILDCARD) {
             WildcardType wildcardType = (WildcardType) typeArgument;
             if (wildcardType.getSuperBound() != null) {
-                // TODO how to resolve this without running into circular dependencies?
-                throw new RuntimeException("Super bound is not supported");
+                // This is a bit counterintuitive. We can't provide every item that's a superclass, since that would
+                // include every single bean, which would produce circular dependencies. Instead, a super wildcard
+                // includes just beans with that exact FQN, and not child classes. This is the same way Spring handles
+                // this problem.
+                return discoveredBeans.beansWithExactFqn(wildcardType.getSuperBound().toString());
             }
             if (wildcardType.getExtendsBound() != null) {
-                return wildcardType.getExtendsBound().toString();
+                return discoveredBeans.beansExtending(wildcardType.getExtendsBound().toString());
             }
         }
         throw new RuntimeException(
