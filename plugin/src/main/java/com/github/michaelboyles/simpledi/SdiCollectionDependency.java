@@ -2,18 +2,16 @@ package com.github.michaelboyles.simpledi;
 
 import com.squareup.javapoet.CodeBlock;
 
-import java.util.Collection;
 import java.util.List;
 
 /**
  * A dependency on a collection, e.g. List or Set. This will wire all beans of the corresponding type.
  */
-public class SdiCollectionDependency implements SdiDependency {
+class SdiCollectionDependency implements SdiDependency {
     private final CollectionFactoryMethod factoryMethod;
     private final List<SdiBean> contents;
 
-    public <T extends Collection<?>, U extends T> SdiCollectionDependency(CollectionFactoryMethod factoryMethod,
-                                                                          List<SdiBean> contents) {
+    public SdiCollectionDependency(CollectionFactoryMethod factoryMethod, List<SdiBean> contents) {
         this.factoryMethod = factoryMethod;
         this.contents = contents;
     }

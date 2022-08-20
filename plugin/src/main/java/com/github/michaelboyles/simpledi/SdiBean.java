@@ -18,7 +18,7 @@ import java.util.stream.Stream;
  */
 @Data
 @Accessors(fluent = true)
-public class SdiBean {
+class SdiBean {
     private final List<SdiDependency> dependencies = new ArrayList<>();
     private final List<InjectMethod> injectMethods = new ArrayList<>();
     private final String name;

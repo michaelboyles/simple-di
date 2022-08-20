@@ -18,7 +18,7 @@ import static com.github.michaelboyles.simpledi.SdiProviderDependency.PROVIDER_I
 /**
  * Generates a class which performs dependency injection.
  */
-public record InjectorClassGenerator(String className, List<SdiBean> sortedBeans) {
+record InjectorClassGenerator(String className, List<SdiBean> sortedBeans) {
     private static final String MAP_FIELD_NAME = "nameToBean";
 
     public JavaFile generateClass() {
