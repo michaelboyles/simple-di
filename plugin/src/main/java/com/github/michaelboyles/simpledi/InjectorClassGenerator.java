@@ -6,6 +6,7 @@ import com.squareup.javapoet.JavaFile;
 import com.squareup.javapoet.MethodSpec;
 import com.squareup.javapoet.ParameterizedTypeName;
 import com.squareup.javapoet.TypeSpec;
+import lombok.RequiredArgsConstructor;
 
 import javax.lang.model.element.Modifier;
 import java.util.HashMap;
@@ -18,8 +19,13 @@ import static com.github.michaelboyles.simpledi.SdiProviderDependency.PROVIDER_I
 /**
  * Generates a class which performs dependency injection.
  */
-record InjectorClassGenerator(String className, List<SdiBean> sortedBeans) {
+@RequiredArgsConstructor
+class InjectorClassGenerator {
     private static final String MAP_FIELD_NAME = "nameToBean";
+
+    private final Map<SdiBean, String> beanToIdentifier = new HashMap<>();
+    private final String className;
+    private final List<SdiBean> sortedBeans;
 
     public JavaFile generateClass() {
         TypeSpec helloWorld = TypeSpec.classBuilder(className)
@@ -67,7 +73,7 @@ record InjectorClassGenerator(String className, List<SdiBean> sortedBeans) {
 
     private void addProviderInstantiation(MethodSpec.Builder methodBuilder, SdiBean bean) {
         methodBuilder.addStatement(
-            "$T<$T> $L$L = new $T<>()", MutableProvider.class, bean.typeElement(), bean.getIdentifier(),
+            "$T<$T> $L$L = new $T<>()", MutableProvider.class, bean.typeElement(), getIdentifier(bean),
             PROVIDER_IDENTIFIER_SUFFIX, MutableProvider.class
         );
     }
@@ -75,18 +81,18 @@ record InjectorClassGenerator(String className, List<SdiBean> sortedBeans) {
     private void addBeanInstantiation(MethodSpec.Builder methodBuilder, SdiBean bean, boolean isProvided) {
         methodBuilder.addStatement(
             "$T $L = new $T($L)",
-            bean.typeElement(), bean.getIdentifier(), bean.typeElement(),
+            bean.typeElement(), getIdentifier(bean), bean.typeElement(),
             getArgumentList(bean.dependencies())
         );
         if (isProvided) {
             methodBuilder.addStatement(
-                "$L$L.set($L)", bean.getIdentifier(), PROVIDER_IDENTIFIER_SUFFIX, bean.getIdentifier()
+                "$L$L.set($L)", getIdentifier(bean), PROVIDER_IDENTIFIER_SUFFIX, getIdentifier(bean)
             );
         }
     }
 
     private void addBeanRegistration(MethodSpec.Builder methodBuilder, SdiBean bean) {
-        String id = bean.getIdentifier();
+        String id = getIdentifier(bean);
         methodBuilder.addStatement("$L.put($S, $L)", MAP_FIELD_NAME, id, id);
     }
 
@@ -103,7 +109,7 @@ record InjectorClassGenerator(String className, List<SdiBean> sortedBeans) {
         for (InjectMethod method : bean.injectMethods()) {
             methodBuilder.addStatement(
                 "$L.$L($L)",
-                bean.getIdentifier(),
+                getIdentifier(bean),
                 method.element().getSimpleName().toString(),
                 getArgumentList(method.dependencies())
             );
@@ -113,11 +119,27 @@ record InjectorClassGenerator(String className, List<SdiBean> sortedBeans) {
     private CodeBlock getArgumentList(List<SdiDependency> dependencies) {
         CodeBlock.Builder builder = CodeBlock.builder();
         for (int i = 0; i < dependencies.size(); ++i) {
-            builder.add(dependencies.get(i).getArgumentExpression());
+            builder.add(dependencies.get(i).getArgumentExpression(this::getIdentifier));
             if (i < (dependencies.size() - 1)) {
                 builder.add(", ");
             }
         }
         return builder.build();
+    }
+
+    // The same class name might exist in different packages, so this guarantees uniqueness of the identifier used for
+    // each bean
+    private String getIdentifier(SdiBean bean) {
+        return beanToIdentifier.computeIfAbsent(bean, k -> {
+            String fqn = bean.getFqn();
+            String shortName = fqn.substring(fqn.lastIndexOf('.') + 1);
+            String camelCase = shortName.substring(0, 1).toLowerCase() + shortName.substring(1);
+            String possibleName = camelCase;
+            int attempt = 0;
+            while (beanToIdentifier.containsValue(possibleName)) {
+                possibleName = camelCase + (++attempt);
+            }
+            return possibleName;
+        });
     }
 }

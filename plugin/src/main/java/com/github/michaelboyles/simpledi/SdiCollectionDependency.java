@@ -3,6 +3,7 @@ package com.github.michaelboyles.simpledi;
 import com.squareup.javapoet.CodeBlock;
 
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * A dependency on a collection, e.g. List or Set. This will wire all beans of the corresponding type.
@@ -27,10 +28,10 @@ class SdiCollectionDependency implements SdiDependency {
     }
 
     @Override
-    public CodeBlock getArgumentExpression() {
+    public CodeBlock getArgumentExpression(Function<SdiBean, String> getIdentifier) {
         CodeBlock.Builder arguments = CodeBlock.builder();
         for (int i = 0; i < contents.size(); ++i) {
-            arguments.add(contents.get(i).getIdentifier());
+            arguments.add(getIdentifier.apply(contents.get(i)));
             if (i < (contents.size() - 1)) {
                 arguments.add(", ");
             }

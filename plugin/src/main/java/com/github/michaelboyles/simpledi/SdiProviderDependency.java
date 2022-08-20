@@ -4,6 +4,7 @@ import com.squareup.javapoet.CodeBlock;
 import lombok.AllArgsConstructor;
 
 import java.util.List;
+import java.util.function.Function;
 
 import static java.util.Collections.emptyList;
 
@@ -27,7 +28,7 @@ class SdiProviderDependency implements SdiDependency {
     }
 
     @Override
-    public CodeBlock getArgumentExpression() {
-        return CodeBlock.of("$L", bean.getIdentifier() + PROVIDER_IDENTIFIER_SUFFIX);
+    public CodeBlock getArgumentExpression(Function<SdiBean, String> getIdentifier) {
+        return CodeBlock.of("$L", getIdentifier.apply(bean) + PROVIDER_IDENTIFIER_SUFFIX);
     }
 }

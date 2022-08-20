@@ -4,6 +4,7 @@ import com.squareup.javapoet.CodeBlock;
 import lombok.AllArgsConstructor;
 
 import java.util.List;
+import java.util.function.Function;
 
 /**
  * A standard dependency, directly upon another bean.
@@ -23,7 +24,7 @@ class SdiBasicDependency implements SdiDependency {
     }
 
     @Override
-    public CodeBlock getArgumentExpression() {
-        return CodeBlock.of("$L", bean.getIdentifier());
+    public CodeBlock getArgumentExpression(Function<SdiBean, String> getIdentifier) {
+        return CodeBlock.of("$L", getIdentifier.apply(bean));
     }
 }
