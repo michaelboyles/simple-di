@@ -18,6 +18,7 @@ import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.ArrayType;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
@@ -110,10 +111,6 @@ public class SingletonProcessor extends AbstractProcessor {
     private void addDependenciesToBeans(DiscoveredBeans discoveredBeans) {
         for (SdiBean bean : discoveredBeans.all()) {
             for (VariableElement parameter : bean.constructor().getParameters()) {
-                TypeMirror paramType = parameter.asType();
-                if (paramType.getKind() != TypeKind.DECLARED) {
-                    throw new RuntimeException("Unsupported type in constructor: " + paramType);
-                }
                 SdiDependency dependency = findDependenciesForParam(discoveredBeans, bean, parameter);
                 bean.addDependency(dependency);
             }
@@ -122,6 +119,15 @@ public class SingletonProcessor extends AbstractProcessor {
 
     private SdiDependency findDependenciesForParam(DiscoveredBeans discoveredBeans, SdiBean bean,
                                                    VariableElement parameter) {
+        TypeMirror paramType = parameter.asType();
+        if (paramType.getKind() == TypeKind.ARRAY) {
+            TypeMirror arrayType = ((ArrayType) paramType).getComponentType();
+            return new SdiCollectionDependency(
+                new ArrayFactoryMethod(arrayType),
+                discoveredBeans.beansExtending(arrayType.toString())
+            );
+        }
+
         String paramTypeFqn = parameter.asType().toString();
         boolean isProvider = paramTypeFqn.startsWith(Provider.class.getName());
         if (isProvider) {

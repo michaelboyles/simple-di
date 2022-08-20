@@ -4,6 +4,7 @@ import javax.inject.Inject;
 import javax.inject.Named;
 import javax.inject.Provider;
 import javax.inject.Singleton;
+import java.util.Arrays;
 import java.util.List;
 
 import static java.util.Collections.emptyList;
@@ -29,5 +30,10 @@ public class Car {
     @Inject
     public void addDriver(Driver driver) {
         System.out.println("Added driver "  + driver);
+    }
+
+    @Inject
+    public void addSeats(Seat[] seats) {
+        System.out.println("Added seats " + Arrays.toString(seats));
     }
 }

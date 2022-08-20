@@ -23,6 +23,7 @@ public final class SimpleDIContext {
         Engine engine = new Engine(turbocharger);
         Car car = new Car(engine, driversSeat, List.of(passengerSeat, driversSeat));
         car.addDriver(driver);
+        car.addSeats(new Seat[] {passengerSeat, driversSeat});
         nameToBean.put("passengerSeat", passengerSeat);
         nameToBean.put("driver", driver);
         nameToBean.put("driversSeat", driversSeat);
@@ -51,7 +52,7 @@ updated.
 - Constructor and method injection
 - Disambiguate constructors with [`@Inject`](https://docs.oracle.com/javaee/6/api/javax/inject/Inject.html)
 - Disambiguate beans with [`@Named`](https://docs.oracle.com/javaee/6/api/javax/inject/Named.html)
-- Autowire collections (List, Set, etc.), including wildcards
+- Autowire collections (List, Set, arrays, etc.), including wildcards
 - Circular dependency resolution with [`Provider<T>`](https://docs.oracle.com/javaee/6/api/javax/inject/Provider.html)
 
 ### Won't be implemented
