@@ -1,5 +1,5 @@
-![GitHub Workflow Status](https://img.shields.io/github/workflow/status/michaelboyles/simple-di/Java%20CI%20with%20Maven)
-![License](https://img.shields.io/github/license/michaelboyles/simple-di)
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/michaelboyles/simple-di/maven.yml?branch=develop)](https://github.com/michaelboyles/simple-di/actions)
+[![License](https://img.shields.io/github/license/michaelboyles/simple-di)](https://github.com/michaelboyles/simple-di/blob/develop/LICENSE)
 
 A simple dependency injection framework for Java, using code generation at compile-time.
 
