@@ -10,7 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
     <description>A module for experiments, which depends on the plugin module</description>
 
-    <artifactId>simple-di-test</artifactId>
+    <artifactId>simple-di-sample</artifactId>
 
     <dependencies>
         <dependency>

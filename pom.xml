@@ -10,7 +10,7 @@
     <version>${revision}</version>
     <modules>
         <module>plugin</module>
-        <module>test</module>
+        <module>sample</module>
         <module>runtime</module>
     </modules>
     <description>A simple dependency injection implementation using code generation</description>

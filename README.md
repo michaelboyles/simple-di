@@ -40,10 +40,10 @@ public final class SimpleDIContext {
 
 ### How to run
 
-Run `mvn verify` and `test/target/generated-sources/annotations` will then contain the generated context
+Run `mvn verify` and `sample/target/generated-sources/annotations` will then contain the generated context
 class.
 
-Make changes to the `test` module, e.g. to add or remove components, then re-run `mvn verify` and the class will be
+Make changes to the `sample` module, e.g. to add or remove components, then re-run `mvn verify` and the class will be
 updated.
 
 ### Implemented
