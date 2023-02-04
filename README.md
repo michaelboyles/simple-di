@@ -9,6 +9,8 @@ which are often implemented at runtime using reflection (e.g. Spring). It is not
 It is built around the [`javax.inject`](https://docs.oracle.com/javaee/6/api/javax/inject/package-summary.html)
 annotations, though doesn't conform completely to that spec.
 
+Some explanation about the implementation is [on my blog](https://boyl.es/post/simple-di/).
+
 ### Sample output
 
 ```java
