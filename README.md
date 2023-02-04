@@ -55,8 +55,12 @@ updated.
 - Autowire collections (List, Set, arrays, etc.), including wildcards
 - Circular dependency resolution with [`Provider<T>`](https://docs.oracle.com/javaee/6/api/javax/inject/Provider.html)
 
-### Won't be implemented
+### Not implemented
 
- - Field injection. [It's error-prone](https://stackoverflow.com/questions/19896870/why-is-my-spring-autowired-field-null)
-   (check the view count), and private fields would need to be set via reflection, which is against the philosophy of
-   this example.
+I don't intend to implement these, but they might make interesting projects.
+
+- Field injection. [It's error-prone](https://stackoverflow.com/questions/19896870/why-is-my-spring-autowired-field-null)
+  (check the view count), and private fields would need to be set via reflection, which is against the philosophy of
+  this example.
+- REST support. This goes beyond dependency injection but, in the spirit of Spring, you could search all
+  `@Singleton`s for a custom `@GetMapping` annotation and use that to generate code to run a Tomcat server.
