@@ -12,7 +12,7 @@ class CollectionDependency implements Dependency {
     private final CollectionFactoryMethod factoryMethod;
     private final List<Bean> contents;
 
-    public CollectionDependency(CollectionFactoryMethod factoryMethod, List<Bean> contents) {
+    CollectionDependency(CollectionFactoryMethod factoryMethod, List<Bean> contents) {
         this.factoryMethod = factoryMethod;
         this.contents = contents;
     }

@@ -33,10 +33,16 @@ class Bean {
         injectMethods.add(injectMethod);
     }
 
+    /**
+     * Get the fully qualified name of the Bean's concrete class.
+     */
     public String getFqn() {
         return typeElement.getQualifiedName().toString();
     }
 
+    /**
+     * Get the fully qualified name of the Bean's concrete class, and all superclasses and interfaces.
+     */
     public Collection<String> getAllFqns() {
         return Stream.concat(
                 Stream.of(typeElement),
