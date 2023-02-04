@@ -14,7 +14,7 @@ import java.util.List;
 import java.util.Map;
 
 import static com.github.michaelboyles.simpledi.Const.INJECTOR_PACKAGE_NAME;
-import static com.github.michaelboyles.simpledi.SdiProviderDependency.PROVIDER_IDENTIFIER_SUFFIX;
+import static com.github.michaelboyles.simpledi.ProviderDependency.PROVIDER_IDENTIFIER_SUFFIX;
 
 /**
  * Generates a class which performs dependency injection.
@@ -23,9 +23,9 @@ import static com.github.michaelboyles.simpledi.SdiProviderDependency.PROVIDER_I
 class InjectorClassGenerator {
     private static final String MAP_FIELD_NAME = "nameToBean";
 
-    private final Map<SdiBean, String> beanToIdentifier = new HashMap<>();
+    private final Map<Bean, String> beanToIdentifier = new HashMap<>();
     private final String className;
-    private final List<SdiBean> sortedBeans;
+    private final List<Bean> sortedBeans;
 
     public JavaFile generateClass() {
         TypeSpec helloWorld = TypeSpec.classBuilder(className)
@@ -47,38 +47,38 @@ class InjectorClassGenerator {
     private MethodSpec getConstructor() {
         MethodSpec.Builder builder = MethodSpec.constructorBuilder()
             .addModifiers(Modifier.PUBLIC);
-        List<SdiBean> providedBeans = getProvidedBeans(sortedBeans);
-        for (SdiBean bean : providedBeans) {
+        List<Bean> providedBeans = getProvidedBeans(sortedBeans);
+        for (Bean bean : providedBeans) {
             addProviderInstantiation(builder, bean);
         }
-        for (SdiBean bean : sortedBeans) {
+        for (Bean bean : sortedBeans) {
             addBeanInstantiation(builder, bean, providedBeans.contains(bean));
         }
-        for (SdiBean bean : sortedBeans) {
+        for (Bean bean : sortedBeans) {
             addInjectMethodInvocations(builder, bean);
         }
-        for (SdiBean bean : sortedBeans) {
+        for (Bean bean : sortedBeans) {
             addBeanRegistration(builder, bean);
         }
         return builder.build();
     }
 
-    private List<SdiBean> getProvidedBeans(List<SdiBean> beans) {
+    private List<Bean> getProvidedBeans(List<Bean> beans) {
         return beans.stream()
-            .map(SdiBean::getProvidedBeans)
+            .map(Bean::getProvidedBeans)
             .flatMap(List::stream)
             .distinct()
             .toList();
     }
 
-    private void addProviderInstantiation(MethodSpec.Builder methodBuilder, SdiBean bean) {
+    private void addProviderInstantiation(MethodSpec.Builder methodBuilder, Bean bean) {
         methodBuilder.addStatement(
             "$T<$T> $L$L = new $T<>()", MutableProvider.class, bean.typeElement(), getIdentifier(bean),
             PROVIDER_IDENTIFIER_SUFFIX, MutableProvider.class
         );
     }
 
-    private void addBeanInstantiation(MethodSpec.Builder methodBuilder, SdiBean bean, boolean isProvided) {
+    private void addBeanInstantiation(MethodSpec.Builder methodBuilder, Bean bean, boolean isProvided) {
         methodBuilder.addStatement(
             "$T $L = new $T($L)",
             bean.typeElement(), getIdentifier(bean), bean.typeElement(),
@@ -91,7 +91,7 @@ class InjectorClassGenerator {
         }
     }
 
-    private void addBeanRegistration(MethodSpec.Builder methodBuilder, SdiBean bean) {
+    private void addBeanRegistration(MethodSpec.Builder methodBuilder, Bean bean) {
         String id = getIdentifier(bean);
         methodBuilder.addStatement("$L.put($S, $L)", MAP_FIELD_NAME, id, id);
     }
@@ -105,7 +105,7 @@ class InjectorClassGenerator {
             .build();
     }
 
-    private void addInjectMethodInvocations(MethodSpec.Builder methodBuilder, SdiBean bean) {
+    private void addInjectMethodInvocations(MethodSpec.Builder methodBuilder, Bean bean) {
         for (InjectMethod method : bean.injectMethods()) {
             methodBuilder.addStatement(
                 "$L.$L($L)",
@@ -116,7 +116,7 @@ class InjectorClassGenerator {
         }
     }
 
-    private CodeBlock getArgumentList(List<SdiDependency> dependencies) {
+    private CodeBlock getArgumentList(List<Dependency> dependencies) {
         CodeBlock.Builder builder = CodeBlock.builder();
         for (int i = 0; i < dependencies.size(); ++i) {
             builder.add(dependencies.get(i).getArgumentExpression(this::getIdentifier));
@@ -129,7 +129,7 @@ class InjectorClassGenerator {
 
     // The same class name might exist in different packages, so this guarantees uniqueness of the identifier used for
     // each bean
-    private String getIdentifier(SdiBean bean) {
+    private String getIdentifier(Bean bean) {
         return beanToIdentifier.computeIfAbsent(bean, k -> {
             String fqn = bean.getFqn();
             String shortName = fqn.substring(fqn.lastIndexOf('.') + 1);

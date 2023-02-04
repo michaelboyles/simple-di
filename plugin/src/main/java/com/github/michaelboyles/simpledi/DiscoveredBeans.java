@@ -10,34 +10,34 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.unmodifiableList;
 
 /**
- * A collection of {@link SdiBean}s which provides a few helpful ways of accessing them.
+ * A collection of {@link Bean}s which provides a few helpful ways of accessing them.
  */
 class DiscoveredBeans {
-    private final List<SdiBean> beans;
-    private final Map<String, List<SdiBean>> fqnToBeans;
+    private final List<Bean> beans;
+    private final Map<String, List<Bean>> fqnToBeans;
 
-    DiscoveredBeans(List<SdiBean> beans) {
+    DiscoveredBeans(List<Bean> beans) {
         this.beans = List.copyOf(beans);
         this.fqnToBeans = fqnToBeans(this.beans);
     }
 
-    public List<SdiBean> all() {
+    public List<Bean> all() {
         return beans;
     }
 
-    public List<SdiBean> beansExtending(String fqn) {
+    public List<Bean> beansExtending(String fqn) {
         return unmodifiableList(fqnToBeans.getOrDefault(fqn, emptyList()));
     }
 
-    public List<SdiBean> beansWithExactFqn(String fqn) {
+    public List<Bean> beansWithExactFqn(String fqn) {
         return beansExtending(fqn).stream()
             .filter(bean -> bean.getFqn().equals(fqn))
             .toList();
     }
 
-    public List<SdiBean> byNumDependencies() {
+    public List<Bean> byNumDependencies() {
         Map<String, Long> fqnToNumDependents = new HashMap<>();
-        for (SdiBean bean : beans) {
+        for (Bean bean : beans) {
             getNumDependencies(fqnToNumDependents, bean);
         }
         return beans.stream()
@@ -45,7 +45,7 @@ class DiscoveredBeans {
             .toList();
     }
 
-    private long getNumDependencies(Map<String, Long> fqnToNumDependents, SdiBean bean) {
+    private long getNumDependencies(Map<String, Long> fqnToNumDependents, Bean bean) {
         final Long SENTINEL = -123L;
 
         Long prevNumDeps = fqnToNumDependents.get(bean.getFqn());
@@ -54,8 +54,8 @@ class DiscoveredBeans {
 
         fqnToNumDependents.put(bean.getFqn(), SENTINEL);
         long numDependencies = 0;
-        for (SdiDependency dependency : bean.dependencies()) {
-            for (SdiBean dependentBean : dependency.directBeans()) {
+        for (Dependency dependency : bean.dependencies()) {
+            for (Bean dependentBean : dependency.directBeans()) {
                 numDependencies += (1 + getNumDependencies(fqnToNumDependents, dependentBean));
             }
         }
@@ -63,9 +63,9 @@ class DiscoveredBeans {
         return numDependencies;
     }
 
-    private static Map<String, List<SdiBean>> fqnToBeans(List<SdiBean> beans) {
-        Map<String, List<SdiBean>> fqnToBeans = new HashMap<>();
-        for (SdiBean bean : beans) {
+    private static Map<String, List<Bean>> fqnToBeans(List<Bean> beans) {
+        Map<String, List<Bean>> fqnToBeans = new HashMap<>();
+        for (Bean bean : beans) {
             for (String fqn : bean.getAllFqns()) {
                 fqnToBeans.computeIfAbsent(fqn, k -> new ArrayList<>()).add(bean);
             }

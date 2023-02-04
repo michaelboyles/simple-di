@@ -49,10 +49,10 @@ public class SingletonProcessor extends AbstractProcessor {
         if (discoveredBeans.all().isEmpty()) return false;
 
         addDependenciesToBeans(discoveredBeans);
-        for (SdiBean bean : discoveredBeans.all()) {
+        for (Bean bean : discoveredBeans.all()) {
             addInjectMethods(discoveredBeans, bean);
         }
-        List<SdiBean> sortedBeans = discoveredBeans.byNumDependencies();
+        List<Bean> sortedBeans = discoveredBeans.byNumDependencies();
 
         JavaFileObject builderFile = processingEnv.getFiler().createSourceFile(INJECTOR_CLASS_NAME);
         try (PrintWriter out = new PrintWriter(builderFile.openWriter())) {
@@ -66,7 +66,7 @@ public class SingletonProcessor extends AbstractProcessor {
         return new DiscoveredBeans(
             roundEnv.getElementsAnnotatedWith(Singleton.class).stream()
                 .filter(singleton -> singleton.asType().getKind() == TypeKind.DECLARED)
-                .map(singleton -> new SdiBean(getName(singleton), (TypeElement) singleton, getConstructor(singleton)))
+                .map(singleton -> new Bean(getName(singleton), (TypeElement) singleton, getConstructor(singleton)))
                 .toList()
         );
     }
@@ -109,20 +109,19 @@ public class SingletonProcessor extends AbstractProcessor {
     }
 
     private void addDependenciesToBeans(DiscoveredBeans discoveredBeans) {
-        for (SdiBean bean : discoveredBeans.all()) {
+        for (Bean bean : discoveredBeans.all()) {
             for (VariableElement parameter : bean.constructor().getParameters()) {
-                SdiDependency dependency = findDependenciesForParam(discoveredBeans, bean, parameter);
+                Dependency dependency = findDependenciesForParam(discoveredBeans, bean, parameter);
                 bean.addDependency(dependency);
             }
         }
     }
 
-    private SdiDependency findDependenciesForParam(DiscoveredBeans discoveredBeans, SdiBean bean,
-                                                   VariableElement parameter) {
+    private Dependency findDependenciesForParam(DiscoveredBeans discoveredBeans, Bean bean, VariableElement parameter) {
         TypeMirror paramType = parameter.asType();
         if (paramType.getKind() == TypeKind.ARRAY) {
             TypeMirror arrayType = ((ArrayType) paramType).getComponentType();
-            return new SdiCollectionDependency(
+            return new CollectionDependency(
                 new ArrayFactoryMethod(arrayType),
                 discoveredBeans.beansExtending(arrayType.toString())
             );
@@ -131,28 +130,28 @@ public class SingletonProcessor extends AbstractProcessor {
         String paramTypeFqn = parameter.asType().toString();
         boolean isProvider = paramTypeFqn.startsWith(Provider.class.getName());
         if (isProvider) {
-            return new SdiProviderDependency(
+            return new ProviderDependency(
                 getProviderContents(bean, parameter, discoveredBeans)
             );
         }
-        List<SdiBean> candidates = discoveredBeans.beansExtending(paramTypeFqn);
+        List<Bean> candidates = discoveredBeans.beansExtending(paramTypeFqn);
         if (candidates.isEmpty()) {
             for (Map.Entry<Class<?>, CollectionFactoryMethod> entry : COLLECTION_TO_FACTORY_METHOD.entrySet()) {
                 if (paramTypeFqn.startsWith(entry.getKey().getName())) {
-                    List<SdiBean> contents = getCollectionContents(parameter, discoveredBeans);
-                    return new SdiCollectionDependency(entry.getValue(), contents);
+                    List<Bean> contents = getCollectionContents(parameter, discoveredBeans);
+                    return new CollectionDependency(entry.getValue(), contents);
                 }
             }
             throw new RuntimeException(
                 "%s requires a bean of type %s which does not exist".formatted(bean.getFqn(), paramTypeFqn)
             );
         }
-        return new SdiBasicDependency(
+        return new BasicDependency(
             tryToDisambiguateWithNamedAnnotation(candidates, parameter)
         );
     }
 
-    private List<SdiBean> getCollectionContents(VariableElement collectionParameter, DiscoveredBeans discoveredBeans) {
+    private List<Bean> getCollectionContents(VariableElement collectionParameter, DiscoveredBeans discoveredBeans) {
         TypeMirror typeArgument = getSingleGenericTypeParam(collectionParameter);
         if (typeArgument.getKind() == TypeKind.DECLARED) {
             return discoveredBeans.beansExtending(typeArgument.toString());
@@ -177,7 +176,7 @@ public class SingletonProcessor extends AbstractProcessor {
         );
     }
 
-    private SdiBean tryToDisambiguateWithNamedAnnotation(List<SdiBean> candidates, VariableElement parameter) {
+    private Bean tryToDisambiguateWithNamedAnnotation(List<Bean> candidates, VariableElement parameter) {
         candidates = new ArrayList<>(candidates);
         Named named = parameter.getAnnotation(Named.class);
         if (named != null) {
@@ -187,7 +186,7 @@ public class SingletonProcessor extends AbstractProcessor {
             throw new RuntimeException(
                 "Ambiguous dependency. Parameter '%s %s' has %d candidates: %s".formatted(
                     parameter.asType(), parameter, candidates.size(),
-                    candidates.stream().map(SdiBean::getFqn).collect(Collectors.joining(", "))
+                    candidates.stream().map(Bean::getFqn).collect(Collectors.joining(", "))
                 )
             );
         }
@@ -211,8 +210,8 @@ public class SingletonProcessor extends AbstractProcessor {
         return typeArguments.get(0);
     }
 
-    private SdiBean getProviderContents(SdiBean sourceBean, VariableElement provider, DiscoveredBeans discoveredBeans) {
-        List<SdiBean> providerContents = getCollectionContents(provider, discoveredBeans);
+    private Bean getProviderContents(Bean sourceBean, VariableElement provider, DiscoveredBeans discoveredBeans) {
+        List<Bean> providerContents = getCollectionContents(provider, discoveredBeans);
         if (providerContents.isEmpty()) {
             throw new RuntimeException(
                 "%s requires a bean of type %s which does not exist".formatted(sourceBean.getFqn(), provider.asType())
@@ -221,16 +220,16 @@ public class SingletonProcessor extends AbstractProcessor {
         return tryToDisambiguateWithNamedAnnotation(providerContents, provider);
     }
 
-    private void addInjectMethods(DiscoveredBeans discoveredBeans, SdiBean bean) {
+    private void addInjectMethods(DiscoveredBeans discoveredBeans, Bean bean) {
         for (ExecutableElement method : getInjectAnnotatedMethods(bean)) {
-            List<SdiDependency> dependencies = method.getParameters().stream()
+            List<Dependency> dependencies = method.getParameters().stream()
                 .map(param -> findDependenciesForParam(discoveredBeans, bean, param))
                 .toList();
             bean.addInjectMethod(new InjectMethod(method, dependencies));
         }
     }
 
-    private List<ExecutableElement> getInjectAnnotatedMethods(SdiBean bean) {
+    private List<ExecutableElement> getInjectAnnotatedMethods(Bean bean) {
         return bean.typeElement().getEnclosedElements().stream()
             .filter(element -> element.getKind() == ElementKind.METHOD)
             .filter(element -> element.getAnnotation(Inject.class) != null)

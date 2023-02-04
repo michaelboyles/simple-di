@@ -18,14 +18,14 @@ import java.util.stream.Stream;
  */
 @Data
 @Accessors(fluent = true)
-class SdiBean {
-    private final List<SdiDependency> dependencies = new ArrayList<>();
+class Bean {
+    private final List<Dependency> dependencies = new ArrayList<>();
     private final List<InjectMethod> injectMethods = new ArrayList<>();
     private final String name;
     private final TypeElement typeElement;
     private final ExecutableElement constructor;
 
-    public void addDependency(SdiDependency dependency) {
+    public void addDependency(Dependency dependency) {
         dependencies.add(dependency);
     }
 
@@ -67,11 +67,11 @@ class SdiBean {
         return (TypeElement) ((DeclaredType) mirror).asElement();
     }
 
-    public List<SdiBean> getProvidedBeans() {
+    public List<Bean> getProvidedBeans() {
         return dependencies.stream()
-            .filter(SdiProviderDependency.class::isInstance)
-            .map(SdiProviderDependency.class::cast)
-            .map(SdiProviderDependency::allBeans)
+            .filter(ProviderDependency.class::isInstance)
+            .map(ProviderDependency.class::cast)
+            .map(ProviderDependency::allBeans)
             .flatMap(List::stream)
             .toList();
     }
